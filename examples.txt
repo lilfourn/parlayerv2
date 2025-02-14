@@ -1,0 +1,102 @@
+const SPORT_KEYS = [
+    'americanfootball_nfl',
+    'americanfootball_ncaaf',
+    'baseball_ncaa',
+    'basketball_nba',
+    'basketball_ncaab',
+    'lacrosse_pll',
+    'soccer_epl',
+    'baseball_mlb',
+    'basketball_wnba',
+    'basketball_wncaab',
+    'mma_mixed_martial_arts',
+    'soccer_spain_la_liga'
+    'icehockey_nhl'
+];
+-----
+export async function GET() {
+    try {
+        // Define response type with proper interfaces
+        interface SportResponse {
+            sport: string;
+            data: EventOdds[] | null;
+            success: boolean;
+            error?: string;
+        }
+
+        interface ApiResponse {
+            data: Record<string, EventOdds[]>;
+            failed_sports: string[];
+            successful_sports: string[];
+            market_availability: Record<string, {
+                available_markets: string[];
+                bookmaker_count: number;
+            }>;
+        }
+
+        const allSportsData = await Promise.all(
+            Object.keys(SPORT_SPECIFIC_MARKETS).map(async (sport): Promise<SportResponse> => {
+                try {
+                    const data = await getSportsBets(sport);
+                    return {
+                        sport,
+                        data,
+                        success: true
+                    };
+                } catch (error) {
+                    return {
+                        sport,
+                        data: null,
+                        success: false,
+                        error: error instanceof Error ? error.message : 'Unknown error'
+                    };
+                }
+            })
+        );
+
+        const response: ApiResponse = {
+            data: {},
+            failed_sports: [],
+            successful_sports: [],
+            market_availability: {}
+        };
+
+        allSportsData.forEach(result => {
+            if (result.success && result.data) {
+                response.data[result.sport] = result.data;
+                response.successful_sports.push(result.sport);
+                
+                // Analyze available markets and bookmakers for this sport
+                const markets = new Set<string>();
+                const bookmakers = new Set<string>();
+                
+                result.data.forEach(event => {
+                    event.bookmakers.forEach(bookmaker => {
+                        bookmakers.add(bookmaker.key);
+                        bookmaker.markets.forEach(market => {
+                            markets.add(market.key);
+                        });
+                    });
+                });
+
+                response.market_availability[result.sport] = {
+                    available_markets: Array.from(markets),
+                    bookmaker_count: bookmakers.size
+                };
+            } else {
+                response.failed_sports.push(result.sport);
+            }
+        });
+
+        return NextResponse.json(response);
+
+    } catch (error) {
+        return NextResponse.json(
+            { 
+                error: 'Failed to fetch odds',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            }, 
+            { status: 500 }
+        );
+    }
+}
