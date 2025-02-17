@@ -32,10 +32,12 @@ const contentTransition = {
 };
 
 const COLLAPSE_DELAY = 500; // 2 seconds in milliseconds
+const EXPAND_DELAY = 150;
 
 const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const expandTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -43,10 +45,15 @@ const Sidebar = () => {
     if (collapseTimer.current) {
       clearTimeout(collapseTimer.current);
     }
-    setIsExpanded(true);
+    expandTimer.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, EXPAND_DELAY);
   }, []);
 
   const handleMouseLeave = useCallback(() => {
+    if (expandTimer.current) {
+      clearTimeout(expandTimer.current);
+    }
     collapseTimer.current = setTimeout(() => {
       setIsExpanded(false);
     }, COLLAPSE_DELAY);

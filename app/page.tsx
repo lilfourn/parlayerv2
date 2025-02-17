@@ -4,11 +4,8 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Gamepad2, CheckCircle2, XCircle } from "lucide-react";
+import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
-import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
-import { WaitlistForm } from '@/components/ui/waitlist-form';
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -71,19 +68,26 @@ export default function Home() {
         >
           <form onSubmit={handleSubmit} className="flex flex-col items-center text-center space-y-6">
             <motion.div
-              className="flex h-16 w-16 items-center justify-center rounded-xl bg-purple-600"
+              className="flex h-16 w-16 items-center justify-center rounded-xl bg-transparent"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Gamepad2 className="h-8 w-8 text-white" />
+              <Image
+                src="/Icons/discord-icon.svg"
+                alt="Discord"
+                width={54}
+                height={54}
+                className="text-white"
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
             </motion.div>
 
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-                Join the Waitlist
+                Join the Discord
               </h1>
               <p className="text-text-secondary">
-                Be the first to experience AI-powered sports betting analytics
+                Be the first to experience the accuracy of true in-depth analysis
               </p>
             </div>
 
@@ -105,12 +109,12 @@ export default function Home() {
                 size="lg"
                 disabled={isLoading}
               >
-                {isLoading ? "Joining..." : "Reserve Your Spot"}
+                {isLoading ? "Joining..." : "Get invite"}
               </Button>
             </div>
 
             <p className="text-xs text-text-secondary">
-              By joining, you agree to receive updates about our platform
+              We know you are busy and we will not spam you, promise :)
             </p>
           </form>
         </motion.div>
