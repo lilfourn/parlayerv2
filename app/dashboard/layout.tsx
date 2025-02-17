@@ -1,6 +1,6 @@
+import Sidebar from "@/components/ui/app-sidebar";
 import type { Metadata } from "next";
 import { Roboto_Mono } from "next/font/google";
-import "./globals.css";
 
 const robotoMono = Roboto_Mono({
   subsets: ["latin"],
@@ -13,16 +13,17 @@ export const metadata: Metadata = {
   description: "Make informed betting decisions with our AI-powered sports analytics platform.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
+interface DashboardLayoutProps {
   children: React.ReactNode;
-}>) {
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <html lang="en">
-      <body className={`${robotoMono.variable} font-mono antialiased`}>
+    <div className="flex h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto p-6">
         {children}
-      </body>
-    </html>
+      </main>
+    </div>
   );
 }
