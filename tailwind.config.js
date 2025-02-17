@@ -1,7 +1,5 @@
-import type { Config } from 'tailwindcss'
-import forms from '@tailwindcss/forms'
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   darkMode: ['class'],
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -21,11 +19,13 @@ const config: Config = {
           hover: '#7C3AED', // Darker purple for hover states
           light: '#A78BFA', // Lighter purple for accents
           dark: '#6D28D9', // Darker purple for active states
+          foreground: 'hsl(var(--primary-foreground))'
         },
         accent: {
           DEFAULT: '#F472B6', // Pink accent
           hover: '#EC4899', // Darker pink for hover
           light: '#FBCFE8', // Light pink for subtle accents
+          foreground: 'hsl(var(--accent-foreground))'
         },
         surface: {
           DEFAULT: '#1F2937', // Card/component background
@@ -83,10 +83,6 @@ const config: Config = {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))'
         },
-        accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))'
-        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))'
@@ -94,10 +90,6 @@ const config: Config = {
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))'
-        },
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))'
         }
       },
       boxShadow: {
@@ -161,11 +153,9 @@ const config: Config = {
     },
   },
   plugins: [
-    forms({
+    require('@tailwindcss/forms')({
       strategy: 'class', // only generate classes
     }),
     require("tailwindcss-animate")
   ],
 }
-
-export default config
