@@ -8,7 +8,8 @@ import {
   BoxScoreResponse, 
   GAME_STATUS,
   GAME_STATUS_TEXT,
-  GameStatusCode 
+  GameStatusCode ,
+  GameSchedule
 } from '@/types/nba';
 import { BarChart } from '@tremor/react';
 import Image from 'next/image';
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { GameStatsDialog } from './gameStatsDialog';
 
 interface TeamCardProps {
   team: NBATeam;
@@ -480,6 +482,17 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
     });
   }
 
+  // Function to determine if it's a home game and get opponent
+  function getGameContext(game: GameSchedule, teamAbv: string) {
+    const isHome = game.home === teamAbv;
+    const opponent = isHome ? game.away : game.home;
+    return {
+      isHome,
+      opponent,
+      matchupText: isHome ? 'vs.' : '@'
+    };
+  }
+
   return (
     <motion.div
       layout
@@ -839,101 +852,63 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
                   "shadow-xl shadow-black/20"
                 )}
               >
-                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white/90 flex items-center justify-between">
-                  <span>Matches</span>
-                  {isLoadingBoxScores && (
-                    <Loader2 className="w-4 h-4 animate-spin text-white/50" />
-                  )}
-                </h3>
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white/90">Recent Games</h3>
                 <div className="space-y-3">
-                  {Object.entries(team.teamSchedule).slice(0, 5).map(([gameId, game], index) => {
-                    const boxScore = boxScores[gameId];
-                    const isHome = game.home === team.teamAbv;
-                    const opponent = isHome ? game.away : game.home;
-                    const gameStatus = (boxScore?.gameStatusCode || GAME_STATUS.NOT_STARTED) as GameStatusCode;
-                    const statusText = GAME_STATUS_TEXT[gameStatus];
-                    const statusColor = 
-                      gameStatus === GAME_STATUS.IN_PROGRESS ? "text-yellow-500" :
-                      gameStatus === GAME_STATUS.COMPLETED ? "text-green-500" :
-                      gameStatus === GAME_STATUS.POSTPONED || gameStatus === GAME_STATUS.SUSPENDED ? "text-red-500" :
-                      "text-blue-500";
-
+                  {Object.entries(team.teamSchedule || {}).map(([gameId, game], index) => {
+                    const { isHome, opponent, matchupText } = getGameContext(game, team.teamAbv);
                     return (
-                      <motion.div
+                      <GameStatsDialog 
                         key={gameId}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className={cn(
-                          "relative p-4 rounded-xl",
-                          "bg-gradient-to-r from-gray-800/70 to-gray-800/40",
-                          "border border-white/10",
-                          "hover:border-white/20 transition-all duration-200",
-                          "group cursor-pointer",
-                          "shadow-lg shadow-black/10",
-                          "backdrop-blur-sm"
-                        )}
+                        gameId={gameId}
+                        homeTeam={game.home}
+                        awayTeam={game.away}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl" />
-                        
-                        <div className="relative flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            
-                            <div>
-                              <div className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                                <div className="flex items-center gap-1">
-                                  <Image
-                                    src={team.nbaComLogo1}
-                                    alt={team.teamAbv}
-                                    width={20}
-                                    height={20}
-                                    className="object-contain"
-                                  />
-                                  <span>{team.teamAbv}</span>
-                                </div>
-                                <span className="text-white/60">{isHome ? 'vs.' : '@'}</span>
-                                <div className="flex items-center gap-1">
-                                  <Image
-                                    src={allTeams.find((t: NBATeam) => t.teamAbv === opponent)?.nbaComLogo1 || ''}
-                                    alt={opponent}
-                                    width={20}
-                                    height={20}
-                                    className="object-contain"
-                                  />
-                                  <span>{opponent}</span>
-                                </div>
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={cn(
+                            "relative p-4 rounded-xl",
+                            "bg-gradient-to-r from-gray-800/70 to-gray-800/40",
+                            "border border-white/10",
+                            "hover:border-white/20 transition-all duration-200",
+                            "group cursor-pointer",
+                            "shadow-lg shadow-black/10",
+                            "backdrop-blur-sm"
+                          )}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl" />
+                          
+                          <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <Image
+                                  src={team.nbaComLogo1}
+                                  alt={team.teamAbv}
+                                  width={20}
+                                  height={20}
+                                  className="object-contain"
+                                />
+                                <span className="text-white/90 text-sm font-medium">{team.teamAbv}</span>
                               </div>
-                              {boxScore?.teamStats && gameStatus === GAME_STATUS.COMPLETED && (
-                                <div className="text-lg font-mono font-bold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
-                                  {isHome ? 
-                                    boxScore.teamStats[team.teamAbv]?.pts || '-' : 
-                                    boxScore.teamStats[opponent]?.pts || '-'
-                                  } - {
-                                    isHome ? 
-                                    boxScore.teamStats[opponent]?.pts || '-' : 
-                                    boxScore.teamStats[team.teamAbv]?.pts || '-'
-                                  }
-                                </div>
-                              )}
+                              <span className="text-white/60">{matchupText}</span>
+                              <div className="flex items-center gap-1">
+                                <Image
+                                  src={allTeams.find(t => t.teamAbv === opponent)?.nbaComLogo1 || ''}
+                                  alt={opponent}
+                                  width={20}
+                                  height={20}
+                                  className="object-contain"
+                                />
+                                <span className="text-white/90 text-sm font-medium">{opponent}</span>
+                              </div>
+                            </div>
+                            <div className="text-sm text-white/40">
+                              {new Date(parseInt(game.gameTime_epoch) * 1000).toLocaleDateString()}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge 
-                              variant="outline" 
-                              className={cn(
-                                "text-xs font-medium px-2 py-0.5",
-                                statusColor,
-                                "border-current/20 bg-current/10"
-                              )}
-                            >
-                              {statusText}
-                            </Badge>
-                            <div className="text-xs text-white/40">
-                              {formatGameDate(game.gameDate)}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
+                        </motion.div>
+                      </GameStatsDialog>
                     );
                   })}
                 </div>

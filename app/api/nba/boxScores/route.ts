@@ -46,56 +46,64 @@ async function fetchBoxScore(gameId: string) {
   }
 }
 
+async function fetchMultipleBoxScores(gameIds: string[]) {
+  const results: Record<string, BoxScoreResponse['body']> = {};
+  const errors: Record<string, string> = {};
+
+  // Use Promise.allSettled to handle multiple requests concurrently
+  const promises = gameIds.map(gameId => fetchBoxScore(gameId));
+  const outcomes = await Promise.allSettled(promises);
+
+  outcomes.forEach((outcome, index) => {
+    const gameId = gameIds[index];
+    if (outcome.status === 'fulfilled') {
+      results[gameId] = outcome.value;
+    } else {
+      errors[gameId] = outcome.reason.message;
+    }
+  });
+
+  return { results, errors };
+}
+
 export async function GET(request: Request) {
   try {
-    // Get gameIds from URL parameters or fetch all if not provided
     const { searchParams } = new URL(request.url);
-    let gameIds = searchParams.get('gameIds')?.split(',');
+    const gameIds = searchParams.get('gameIds')?.split(',');
 
-    // If no specific gameIds provided, fetch all from teams data
     if (!gameIds || gameIds.length === 0) {
-      const teams = await fetchTeamsData();
-      gameIds = extractGameIds(teams);
-    }
-
-    if (gameIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No games available' },
-        { status: 404 }
-      );
-    }
-
-    // Fetch box scores for all games concurrently
-    const boxScorePromises = gameIds.map(gameId => fetchBoxScore(gameId));
-    const boxScores = await Promise.allSettled(boxScorePromises);
-
-    // Process results
-    const results: Record<string, any> = {};
-    boxScores.forEach((result, index) => {
-      const gameId = gameIds[index];
-      if (result.status === 'fulfilled') {
-        results[gameId] = result.value;
-      } else {
-        results[gameId] = { error: 'Failed to fetch box score' };
+      const teamsData = await fetchTeamsData();
+      const allGameIds = extractGameIds(teamsData);
+      
+      if (!allGameIds.length) {
+        return NextResponse.json({ error: 'No game IDs found' }, { status: 404 });
       }
+
+      const { results, errors } = await fetchMultipleBoxScores(allGameIds);
+
+      return NextResponse.json({
+        data: results,
+        errors: Object.keys(errors).length > 0 ? errors : undefined,
+        totalGames: allGameIds.length,
+        successfulFetches: Object.keys(results).length,
+        failedFetches: Object.keys(errors).length
+      });
+    }
+
+    const { results, errors } = await fetchMultipleBoxScores(gameIds);
+
+    return NextResponse.json({
+      data: results,
+      errors: Object.keys(errors).length > 0 ? errors : undefined,
+      totalGames: gameIds.length,
+      successfulFetches: Object.keys(results).length,
+      failedFetches: Object.keys(errors).length
     });
 
-    return NextResponse.json(
-      { body: results },
-      { status: 200 }
-    );
   } catch (error) {
-    console.error('Error fetching box scores:', error);
-    
-    if (axios.isAxiosError(error)) {
-      return NextResponse.json(
-        { error: `Failed to fetch box scores: ${error.message}` },
-        { status: error.response?.status || 500 }
-      );
-    }
-
+    console.error('Error in GET route:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch box scores' },
       { status: 500 }
     );
   }
