@@ -1,32 +1,32 @@
-interface GameSchedule {
+export interface GameSchedule {
   gameID: string;
   seasonType: string;
   away: string;
-  gameTime: string;
-  gameDate: string;
-  teamIDHome: string;
-  gameTime_epoch: string;
-  teamIDAway: string;
   home: string;
+  teamIDAway: string;
+  teamIDHome: string;
+  gameDate: string;
+  gameTime: string;
+  gameTime_epoch: string;
 }
 
-interface TeamSchedule {
+export interface TeamSchedule {
   [gameId: string]: GameSchedule;
 }
 
-interface Streak {
+export interface Streak {
   result: "W" | "L";
   length: number;
 }
 
-interface PlayerInjury {
+export interface PlayerInjury {
   injReturnDate: string;
   description: string;
   injDate: string;
   designation: string;
 }
 
-interface PlayerStats {
+export interface PlayerStats {
   blk: string;
   fga: string;
   DefReb: string;
@@ -50,54 +50,54 @@ interface PlayerStats {
   ftm: string;
 }
 
-interface Player {
-  college: string;
-  fantasyProsLink: string;
+export interface Player {
+  playerID: string;
+  teamID: string;
+  team: string;
+  pos: string;
   jerseyNum: string;
-  bRefID: string;
-  espnName: string;
-  yahooLink: string;
-  sleeperBotID: string;
-  fantasyProsPlayerID: string;
+  longName: string;
+  shortName: string;
+  firstSeen: string;
+  height: string;
+  weight: string;
+  bDay: string;
+  exp: string;
+  college: string;
+  injury: PlayerInjury;
+  stats: PlayerStats;
+  nbaComID: string;
+  nbaComName: string;
   nbaComLink: string;
   nbaComHeadshot: string;
-  lastGamePlayed: string;
-  espnLink: string;
-  yahooPlayerID: string;
-  pos: string;
-  teamID: string;
-  injury: PlayerInjury;
-  nbaComName: string;
-  rotoWirePlayerIDFull: string;
-  rotoWirePlayerID: string;
-  exp: string;
-  height: string;
-  nbaComID: string;
-  espnHeadshot: string;
   espnID: string;
-  firstSeen: string;
-  weight: string;
-  team: string;
-  bRefName: string;
+  espnName: string;
+  espnLink: string;
+  espnHeadshot: string;
   espnShortName: string;
-  bDay: string;
+  bRefID: string;
+  bRefName: string;
+  yahooPlayerID: string;
+  yahooLink: string;
   cbsPlayerID: string;
-  shortName: string;
-  longName: string;
-  playerID: string;
-  stats: PlayerStats;
+  fantasyProsPlayerID: string;
+  fantasyProsLink: string;
+  rotoWirePlayerID: string;
+  rotoWirePlayerIDFull: string;
+  sleeperBotID: string;
+  lastGamePlayed: string;
 }
 
-interface Roster {
-  [playerId: string]: Player;
+export interface Roster {
+  [playerID: string]: Player;
 }
 
-interface TopPerformer {
+export interface TopPerformer {
   total: string;
   playerID: string[];
 }
 
-interface TopPerformers {
+export interface TopPerformers {
   blk: TopPerformer;
   ast: TopPerformer;
   tptfgm: TopPerformer;
@@ -107,7 +107,7 @@ interface TopPerformers {
   reb: TopPerformer;
 }
 
-interface PositionalStats {
+export interface PositionalStats {
   C: string;
   SF: string;
   SG: string;
@@ -116,45 +116,51 @@ interface PositionalStats {
   Total: string;
 }
 
-interface TeamStats {
+export interface TeamStats {
   blk: PositionalStats;
   fga: PositionalStats;
-  ptsAway: string;
   ast: PositionalStats;
   tptfgm: PositionalStats;
   stl: PositionalStats;
-  ptsHome: string;
   fgm: PositionalStats;
-  teamAbv: string;
   pts: PositionalStats;
   reb: PositionalStats;
   fta: PositionalStats;
-  gamesPlayed: string;
-  teamID: string;
   tptfga: PositionalStats;
   TOV: PositionalStats;
   ftm: PositionalStats;
+  teamID: string;
+  teamAbv: string;
+  gamesPlayed: string;
+  ptsHome: string;
+  ptsAway: string;
+}
+
+export interface TeamLogos {
+  nbaComLogo1: string;
+  nbaComLogo2: string;
+  espnLogo1: string;
 }
 
 export interface NBATeam {
+  teamID: string;
   teamAbv: string;
   teamCity: string;
-  teamSchedule: TeamSchedule;
-  currentStreak: Streak;
+  teamName: string;
+  wins: string;
   loss: string;
   ppg: string;
-  teamName: string;
-  Roster: Roster;
-  teamID: string;
-  division: string;
-  conferenceAbv: string;
-  nbaComLogo2: string;
-  nbaComLogo1: string;
-  espnLogo1: string;
   oppg: string;
-  wins: string;
   conference: string;
+  conferenceAbv: string;
+  division: string;
+  currentStreak: Streak;
+  teamSchedule: TeamSchedule;
+  Roster: Roster;
   topPerformers: TopPerformers;
   defensiveStats: TeamStats;
   offensiveStats: TeamStats;
+  nbaComLogo1: string;
+  nbaComLogo2: string;
+  espnLogo1: string;
 }
