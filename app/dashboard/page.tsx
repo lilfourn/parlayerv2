@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import Image from "next/image"
 import { ThreeDCard } from "@/components/dashboard/3d-card"
 import { useEffect, useState } from "react"
@@ -7,13 +8,23 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { ArrowRight } from "lucide-react"
 
-const sportsCards = [
+interface SportCard {
+  title: string
+  subtitle: string
+  icon: string
+  gradient: string
+  span: { row: number; col: number }
+  href?: string
+}
+
+const sportsCards: SportCard[] = [
   {
     title: "Basketball",
     subtitle: "Live Games",
     icon: "/3d Sports Icons/3d-basketball.svg",
     gradient: "from-orange-500/20 via-orange-400/10 to-orange-300/5",
-    span: { row: 1, col: 2 }
+    span: { row: 1, col: 2 },
+    href: "/dashboard/basketball"
   },
   {
     title: "Soccer",
@@ -80,41 +91,60 @@ export default function DashboardPage() {
       }}
     >
       <div className="grid gap-4 sm:gap-6 auto-rows-[200px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-        {sportsCards.map((card, index) => (
-          <ThreeDCard 
-            key={card.title}
-            title={card.title}
-            subtitle={card.subtitle}
-            className={cn(
-              "group relative",
-              `bg-gradient-to-br ${card.gradient}`,
-              {
-                'col-span-1 sm:col-span-2 lg:col-span-2': card.span.col === 2,
-                'col-span-1': card.span.col === 1
-              }
-            )}
-            size={card.span.col === 2 ? "lg" : "md"}
-            ariaLabel={`View ${card.title} ${card.subtitle}`}
-          >
-            <div className={cn(
-              "absolute inset-0 transition-all duration-500",
-              "icon-hover will-change-transform",
-              card.span.col === 2 ? "-right-12 -bottom-10" : "-right-14 -bottom-12"
-            )}>
-              <Image
-                src={card.icon}
-                alt={`${card.title} Icon`}
-                fill
-                className={cn(
-                  "object-contain drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]",
-                  card.span.col === 2 ? "scale-[1.6]" : "scale-[1.4]",
-                  "transform-gpu"
-                )}
-                priority={index < 4}
-              />
+        {sportsCards.map((card, index) => {
+          const gridClasses = {
+            'col-span-1 sm:col-span-2 lg:col-span-2': card.span.col === 2,
+            'col-span-1': card.span.col === 1
+          }
+
+          const CardContent = (
+            <ThreeDCard 
+              title={card.title}
+              subtitle={card.subtitle}
+              className={cn(
+                "group relative",
+                `bg-gradient-to-br ${card.gradient}`
+              )}
+              size={card.span.col === 2 ? "lg" : "md"}
+              ariaLabel={`View ${card.title} ${card.subtitle}`}
+            >
+              <div className={cn(
+                "absolute inset-0 transition-all duration-500",
+                "icon-hover will-change-transform",
+                card.span.col === 2 ? "-right-12 -bottom-10" : "-right-14 -bottom-12"
+              )}>
+                <Image
+                  src={card.icon}
+                  alt={`${card.title} Icon`}
+                  fill
+                  className={cn(
+                    "object-contain drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]",
+                    card.span.col === 2 ? "scale-[1.6]" : "scale-[1.4]",
+                    "transform-gpu"
+                  )}
+                  priority={index < 4}
+                />
+              </div>
+            </ThreeDCard>
+          )
+
+          return card.href ? (
+            <Link 
+              key={card.title} 
+              href={card.href}
+              className={cn(gridClasses)}
+            >
+              {CardContent}
+            </Link>
+          ) : (
+            <div 
+              key={card.title}
+              className={cn(gridClasses)}
+            >
+              {CardContent}
             </div>
-          </ThreeDCard>
-        ))}
+          )
+        })}
 
         {/* View All Sports Card */}
         <ThreeDCard
