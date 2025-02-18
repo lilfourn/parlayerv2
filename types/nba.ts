@@ -143,6 +143,7 @@ export interface TeamLogos {
 }
 
 export interface NBATeam {
+  team: NBATeam[];
   teamID: string;
   teamAbv: string;
   teamCity: string;
@@ -163,4 +164,167 @@ export interface NBATeam {
   nbaComLogo1: string;
   nbaComLogo2: string;
   espnLogo1: string;
+}
+
+export interface BoxScoreResponse {
+  body: {
+    playerStats: Record<string, PlayerGameStats>;
+    gameStatus: string;
+    arenaCapacity: string;
+    referees: string;
+    arena: string;
+    teamStats: {
+      CLE: TeamGameStats;
+      SA: TeamGameStats;
+    };
+    gameDate: string;
+    homePts: string;
+    teamIDHome: string;
+    awayResult: string;
+    homeResult: string;
+    teamIDAway: string;
+    away: string;
+    attendance: string;
+    lineScore: {
+      CLE: LineScore;
+      SA: LineScore;
+    };
+    currentlyPlaying: unknown;
+    gameLocation: string;
+    gameClock: string;
+    awayPts: string;
+    gameID: string;
+    home: string;
+    gameStatusCode: string;
+  };
+}
+
+export interface PlayerGameStats {
+  gameID: string;
+  fga: string;
+  ast: string;
+  tptfgp: string;
+  tptfgm: string;
+  fgm: string;
+  reb: string;
+  fgp: string;
+  mins: string;
+  fta: string;
+  teamID: string;
+  tptfga: string;
+  OffReb: string;
+  ftm: string;
+  blk: string;
+  tech: string;
+  DefReb: string;
+  plusMinus: string;
+  ftp: string;
+  stl: string;
+  team: string;
+  teamAbv: string;
+  pts: string;
+  PF: string;
+  TOV: string;
+  longName: string;
+  playerID: string;
+  usage: string;
+  fantasyPoints: string;
+}
+
+export interface TeamGameStats {
+  fga: string;
+  ast: string;
+  tptfgp: string;
+  tptfgm: string;
+  fastBreakPts: string;
+  fgm: string;
+  fgp: string;
+  reb: string;
+  fta: string;
+  teamID: string;
+  pointsInPaint: string;
+  tptfga: string;
+  OffReb: string;
+  ftm: string;
+  blk: string;
+  tech: string;
+  DefReb: string;
+  ftp: string;
+  largestLead: string;
+  flagrantFouls: string;
+  stl: string;
+  team: string;
+  teamAbv: string;
+  pts: string;
+  PF: string;
+  TOV: string;
+  ptsOffTOV: string;
+  numberOfPossessions: string;
+}
+
+export interface LineScore {
+  "1Q": string;
+  teamIDHome?: string;
+  teamID: string;
+  teamIDAway?: string;
+  totalPts: string;
+  teamAbv: string;
+  "4Q": string;
+  "3Q": string;
+  "2Q": string;
+}
+
+// Helper type for parsing string numbers
+export type StringNumber = string;
+
+// Utility type for converting string numbers to actual numbers
+export interface ParsedPlayerGameStats extends Omit<PlayerGameStats, 
+  | "fga" | "ast" | "tptfgp" | "tptfgm" | "fgm" | "reb" | "fgp" 
+  | "mins" | "fta" | "tptfga" | "OffReb" | "ftm" | "blk" | "tech" 
+  | "DefReb" | "ftp" | "stl" | "pts" | "PF" | "TOV" | "usage" | "fantasyPoints"> {
+  fga: number;
+  ast: number;
+  tptfgp: number;
+  tptfgm: number;
+  fgm: number;
+  reb: number;
+  fgp: number;
+  mins: number;
+  fta: number;
+  tptfga: number;
+  OffReb: number;
+  ftm: number;
+  blk: number;
+  tech: number;
+  DefReb: number;
+  ftp: number;
+  stl: number;
+  pts: number;
+  PF: number;
+  TOV: number;
+  usage: number;
+  fantasyPoints: number;
+}
+
+// Game status map
+export const GAME_STATUS = {
+  NOT_STARTED: "0",
+  IN_PROGRESS: "1",
+  COMPLETED: "2",
+  POSTPONED: "3",
+  SUSPENDED: "4",
+} as const;
+
+export type GameStatusCode = typeof GAME_STATUS[keyof typeof GAME_STATUS];
+
+export const GAME_STATUS_TEXT: Record<GameStatusCode, string> = {
+  [GAME_STATUS.NOT_STARTED]: "Not Started",
+  [GAME_STATUS.IN_PROGRESS]: "In Progress",
+  [GAME_STATUS.COMPLETED]: "Final",
+  [GAME_STATUS.POSTPONED]: "Postponed",
+  [GAME_STATUS.SUSPENDED]: "Suspended",
+};
+
+export function getGameStatusText(statusCode: GameStatusCode): string {
+  return GAME_STATUS_TEXT[statusCode];
 }

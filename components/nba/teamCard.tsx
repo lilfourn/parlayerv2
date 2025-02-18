@@ -1,13 +1,21 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { NBATeam, Player, PlayerStats } from '@/types/nba';
+import { 
+  NBATeam, 
+  Player, 
+  PlayerStats, 
+  BoxScoreResponse, 
+  GAME_STATUS,
+  GAME_STATUS_TEXT,
+  GameStatusCode 
+} from '@/types/nba';
 import { BarChart } from '@tremor/react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Trophy, Star, Target, Info, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trophy, Star, Target, Info, X, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -18,6 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface TeamCardProps {
   team: NBATeam;
@@ -77,6 +86,25 @@ function getTeamColors(teamAbv: string) {
   };
 }
 
+interface StatDisplay {
+  label: string;
+  key: keyof PlayerStats;
+  format: (value: string) => string;
+}
+
+const playerStatDisplays: StatDisplay[] = [
+  { label: "Points", key: "pts", format: (v) => v },
+  { label: "Rebounds", key: "reb", format: (v) => v },
+  { label: "Assists", key: "ast", format: (v) => v },
+  { label: "Steals", key: "stl", format: (v) => v },
+  { label: "Blocks", key: "blk", format: (v) => v },
+  { label: "FG%", key: "fgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
+  { label: "3P%", key: "tptfgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
+  { label: "FT%", key: "ftp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
+  { label: "Minutes", key: "mins", format: (v) => v },
+  { label: "Games", key: "gamesPlayed", format: (v) => v },
+];
+
 const statDescriptions: Record<string, { full: string; description: string }> = {
   pts: {
     full: "Points",
@@ -107,25 +135,6 @@ const statDescriptions: Record<string, { full: string; description: string }> = 
     description: "Turnovers per game (TOPG)"
   }
 };
-
-interface StatDisplay {
-  label: string;
-  key: keyof PlayerStats;
-  format: (value: string) => string;
-}
-
-const playerStatDisplays: StatDisplay[] = [
-  { label: "Points", key: "pts", format: (v) => v },
-  { label: "Rebounds", key: "reb", format: (v) => v },
-  { label: "Assists", key: "ast", format: (v) => v },
-  { label: "Steals", key: "stl", format: (v) => v },
-  { label: "Blocks", key: "blk", format: (v) => v },
-  { label: "FG%", key: "fgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "3P%", key: "tptfgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "FT%", key: "ftp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "Minutes", key: "mins", format: (v) => v },
-  { label: "Games", key: "gamesPlayed", format: (v) => v },
-];
 
 function PlayerStatsDialog({ player, stats }: { player: Player; stats: PlayerStats }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -285,9 +294,67 @@ function formatHeight(height: string | undefined) {
   return height;
 }
 
+interface BoxScore {
+  teamStats: Record<string, { pts: string }>;
+  gameStatusCode: GameStatusCode;
+}
+
 export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
+  const [boxScores, setBoxScores] = useState<Record<string, BoxScore>>({});
+  const [isLoadingBoxScores, setIsLoadingBoxScores] = useState(false);
+  const [allTeams, setAllTeams] = useState<NBATeam[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [rotateX, setRotateX] = useState(0);
+
+  useEffect(() => {
+    const fetchAllTeams = async () => {
+      try {
+        // Check if we have cached data
+        const cachedTeams = sessionStorage.getItem('nbaTeams');
+        const cachedTimestamp = sessionStorage.getItem('nbaTeamsTimestamp');
+        const now = Date.now();
+        
+        // Use cached data if it's less than 5 minutes old
+        if (cachedTeams && cachedTimestamp && (now - parseInt(cachedTimestamp)) < 300000) {
+          setAllTeams(JSON.parse(cachedTeams));
+          return;
+        }
+
+        const response = await fetch('/api/nba/teams');
+        const data = await response.json();
+        
+        // Cache the new data
+        sessionStorage.setItem('nbaTeams', JSON.stringify(data.body));
+        sessionStorage.setItem('nbaTeamsTimestamp', now.toString());
+        
+        setAllTeams(data.body);
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+      }
+    };
+    fetchAllTeams();
+  }, []);
+
+  // Fetch box scores when expanded
+  useEffect(() => {
+    if (isExpanded && Object.keys(boxScores).length === 0) {
+      fetchBoxScores();
+    }
+  }, [isExpanded]);
+
+  const fetchBoxScores = async () => {
+    try {
+      setIsLoadingBoxScores(true);
+      const gameIds = Object.keys(team.teamSchedule).join(',');
+      const response = await fetch(`/api/nba/boxScores?gameIds=${gameIds}`);
+      const data = await response.json();
+      setBoxScores(data.body);
+    } catch (error) {
+      console.error('Error fetching box scores:', error);
+    } finally {
+      setIsLoadingBoxScores(false);
+    }
+  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't toggle if clicking a dialog or its backdrop
@@ -401,6 +468,17 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
       percentile: 70,
     },
   ];
+
+  // Helper function to format date string from "YYYYMMDD" to readable date
+  function formatGameDate(dateString: string): string {
+    const year = dateString.substring(0, 4);
+    const month = dateString.substring(4, 6);
+    const day = dateString.substring(6, 8);
+    return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+  }
 
   return (
     <motion.div
@@ -658,11 +736,11 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
                 )}
               >
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-white/90 flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <Star className="w-5 h-5 text-yellow-500" />
                   <span>Top Performers</span>
                 </h3>
                 <div className="flex flex-col gap-3">
-                  {Object.entries(team.topPerformers).map(([category, data], index) => {
+                  {Object.entries(team.topPerformers).map(([category, data]: [string, { total: string; playerID: string[] }], index) => {
                     const Icon = index === 0 ? Star : index === 1 ? Target : Trophy;
                     const statInfo = statDescriptions[category];
                     return (
@@ -754,27 +832,113 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.2, ease: "linear" }}
-                className="p-3 sm:p-4 rounded-xl bg-black/5 backdrop-blur-sm"
+                className={cn(
+                  "p-4 sm:p-6 rounded-2xl",
+                  "bg-gradient-to-br from-gray-900/90 to-gray-900/50",
+                  "backdrop-blur-md border border-white/10",
+                  "shadow-xl shadow-black/20"
+                )}
               >
-                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-white/90">
-                  Recent Games
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white/90 flex items-center justify-between">
+                  <span>Matches</span>
+                  {isLoadingBoxScores && (
+                    <Loader2 className="w-4 h-4 animate-spin text-white/50" />
+                  )}
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {Object.values(team.teamSchedule).slice(0, 6).map((game) => (
-                    <div
-                      key={game.gameID}
-                      className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-black/5 hover:bg-black/10 transition-colors"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-white/90 text-sm sm:text-base">{game.away}</span>
-                        <span className="text-white/60 text-sm sm:text-base">@</span>
-                        <span className="font-semibold text-white/90 text-sm sm:text-base">{game.home}</span>
-                      </div>
-                      <span className="text-white/60 text-sm sm:text-base">{game.gameTime}</span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {Object.entries(team.teamSchedule).slice(0, 5).map(([gameId, game], index) => {
+                    const boxScore = boxScores[gameId];
+                    const isHome = game.home === team.teamAbv;
+                    const opponent = isHome ? game.away : game.home;
+                    const gameStatus = (boxScore?.gameStatusCode || GAME_STATUS.NOT_STARTED) as GameStatusCode;
+                    const statusText = GAME_STATUS_TEXT[gameStatus];
+                    const statusColor = 
+                      gameStatus === GAME_STATUS.IN_PROGRESS ? "text-yellow-500" :
+                      gameStatus === GAME_STATUS.COMPLETED ? "text-green-500" :
+                      gameStatus === GAME_STATUS.POSTPONED || gameStatus === GAME_STATUS.SUSPENDED ? "text-red-500" :
+                      "text-blue-500";
+
+                    return (
+                      <motion.div
+                        key={gameId}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={cn(
+                          "relative p-4 rounded-xl",
+                          "bg-gradient-to-r from-gray-800/70 to-gray-800/40",
+                          "border border-white/10",
+                          "hover:border-white/20 transition-all duration-200",
+                          "group cursor-pointer",
+                          "shadow-lg shadow-black/10",
+                          "backdrop-blur-sm"
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl" />
+                        
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            
+                            <div>
+                              <div className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Image
+                                    src={team.nbaComLogo1}
+                                    alt={team.teamAbv}
+                                    width={20}
+                                    height={20}
+                                    className="object-contain"
+                                  />
+                                  <span>{team.teamAbv}</span>
+                                </div>
+                                <span className="text-white/60">{isHome ? 'vs.' : '@'}</span>
+                                <div className="flex items-center gap-1">
+                                  <Image
+                                    src={allTeams.find((t: NBATeam) => t.teamAbv === opponent)?.nbaComLogo1 || ''}
+                                    alt={opponent}
+                                    width={20}
+                                    height={20}
+                                    className="object-contain"
+                                  />
+                                  <span>{opponent}</span>
+                                </div>
+                              </div>
+                              {boxScore?.teamStats && gameStatus === GAME_STATUS.COMPLETED && (
+                                <div className="text-lg font-mono font-bold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+                                  {isHome ? 
+                                    boxScore.teamStats[team.teamAbv]?.pts || '-' : 
+                                    boxScore.teamStats[opponent]?.pts || '-'
+                                  } - {
+                                    isHome ? 
+                                    boxScore.teamStats[opponent]?.pts || '-' : 
+                                    boxScore.teamStats[team.teamAbv]?.pts || '-'
+                                  }
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "text-xs font-medium px-2 py-0.5",
+                                statusColor,
+                                "border-current/20 bg-current/10"
+                              )}
+                            >
+                              {statusText}
+                            </Badge>
+                            <div className="text-xs text-white/40">
+                              {formatGameDate(game.gameDate)}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.div>
+
             </motion.div>
           )}
         </AnimatePresence>
