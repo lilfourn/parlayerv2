@@ -37,7 +37,7 @@ interface TeamCardProps {
 }
 
 // Team color mapping
-const NBA_TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
+export const NBA_TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
   'ATL': { primary: 'red', secondary: 'green' },
   'BOS': { primary: 'green', secondary: 'yellow' },
   'BKN': { primary: 'zinc', secondary: 'zinc' },

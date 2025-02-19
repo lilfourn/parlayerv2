@@ -41,26 +41,27 @@ export function LineMovementToast({ lineMovements, projections }: LineMovementTo
     const movements = Array.from(lineMovements.entries())
       .filter(([_, movement]) => movement.direction !== 'none');
 
+    // Calculate moved lines details
+    const movedLinesDetails = movements.map(([projId, movement]) => {
+      const projection = projections.find(p => p.projection.id === projId);
+      if (!projection) return null;
+
+      return {
+        playerName: projection.player?.attributes.display_name || 'Unknown Player',
+        playerImage: projection.player?.attributes.image_url || null,
+        teamName: projection.player?.attributes.team_name || null,
+        statType: projection.projection.attributes.stat_display_name,
+        oldLine: projection.projection.attributes.line_score - (movement.direction === 'up' ? movement.difference : -movement.difference),
+        newLine: projection.projection.attributes.line_score,
+        direction: movement.direction,
+        difference: movement.difference,
+      };
+    }).filter((line): line is MovedLine => line !== null);
+
+    setMovedLines(movedLinesDetails);
+
+    // Show toast for both changes and no changes
     if (movements.length > 0) {
-      // Calculate moved lines details
-      const movedLinesDetails = movements.map(([projId, movement]) => {
-        const projection = projections.find(p => p.projection.id === projId);
-        if (!projection) return null;
-
-        return {
-          playerName: projection.player?.attributes.display_name || 'Unknown Player',
-          playerImage: projection.player?.attributes.image_url || null,
-          teamName: projection.player?.attributes.team_name || null,
-          statType: projection.projection.attributes.stat_display_name,
-          oldLine: projection.projection.attributes.line_score - (movement.direction === 'up' ? movement.difference : -movement.difference),
-          newLine: projection.projection.attributes.line_score,
-          direction: movement.direction,
-          difference: movement.difference,
-        };
-      }).filter((line): line is MovedLine => line !== null);
-
-      setMovedLines(movedLinesDetails);
-
       const upMoves = movements.filter(([_, m]) => m.direction === 'up').length;
       const downMoves = movements.filter(([_, m]) => m.direction === 'down').length;
 
@@ -78,8 +79,20 @@ export function LineMovementToast({ lineMovements, projections }: LineMovementTo
         variant: "default",
         className: "bg-gray-900 border-gray-800 text-gray-100 cursor-pointer",
       });
+    } else if (lineMovements.size > 0) { // Only show "No changes" if we have some lines to compare
+      toast({
+        title: "Line Movement Update",
+        description: "No changes detected in any lines",
+        variant: "default",
+        className: "bg-gray-900 border-gray-800 text-gray-100",
+      });
     }
   }, [lineMovements, projections, toast]);
+
+  // Don't render dialog if no movements
+  if (movedLines.length === 0) {
+    return null;
+  }
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
