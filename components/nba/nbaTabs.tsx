@@ -2,12 +2,12 @@
 
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
-import { Trophy, TrendingUp, LineChart } from "lucide-react"
+import { Trophy, TrendingUp, LineChart, Sparkles } from "lucide-react"
 import { useState } from "react"
 
 interface NBATabsProps {
-  activeTab: 'teams' | 'players';
-  onChange: (tab: 'teams' | 'players') => void;
+  activeTab: 'teams' | 'players' | 'projections';
+  onChange: (tab: 'teams' | 'players' | 'projections') => void;
   children?: React.ReactNode[];
 }
 
@@ -23,6 +23,12 @@ const tabItems = [
     label: "Players",
     icon: LineChart,
     description: "Player stats and profiles"
+  },
+  {
+    value: "projections" as const,
+    label: "Projections",
+    icon: Sparkles,
+    description: "Future performance predictions"
   }
 ]
 
@@ -30,7 +36,8 @@ export function NBATabs({ children, activeTab, onChange }: NBATabsProps) {
   // Map of tab values to their content indices
   const tabContentMap = {
     teams: 0,
-    players: 1
+    players: 1,
+    projections: 2
   }
 
   return (

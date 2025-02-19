@@ -54,6 +54,13 @@ function parseStatValue(value: string | undefined): number {
 interface PlayerCardProps {
   player: Player;
   sidebarWidth?: number;
+  maxStats?: {
+    pts: number;
+    ast: number;
+    reb: number;
+    stl: number;
+    blk: number;
+  };
 }
 
 interface StatDisplay {
@@ -84,18 +91,16 @@ function formatHeight(height: string | undefined) {
   return `${feet}'${inches}"`;
 }
 
-export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
+export function PlayerCard({ player, sidebarWidth = 350, maxStats }: PlayerCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const statsData = [
-    { name: 'PTS', value: parseStatValue(player.stats?.pts) },
-    { name: 'AST', value: parseStatValue(player.stats?.ast) },
-    { name: 'REB', value: parseStatValue(player.stats?.reb) },
-    { name: 'STL', value: parseStatValue(player.stats?.stl) },
-    { name: 'BLK', value: parseStatValue(player.stats?.blk) },
+    { name: 'PTS', value: parseStatValue(player.stats?.pts), maxValue: maxStats?.pts || 35 },
+    { name: 'AST', value: parseStatValue(player.stats?.ast), maxValue: maxStats?.ast || 12 },
+    { name: 'REB', value: parseStatValue(player.stats?.reb), maxValue: maxStats?.reb || 15 },
+    { name: 'STL', value: parseStatValue(player.stats?.stl), maxValue: maxStats?.stl || 3 },
+    { name: 'BLK', value: parseStatValue(player.stats?.blk), maxValue: maxStats?.blk || 3 },
   ];
-
-  const maxStat = Math.max(...statsData.map(stat => stat.value));
 
   const statData = player.stats ? playerStatDisplays.map(stat => ({
     name: stat.label,
@@ -171,10 +176,9 @@ export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
                 <div className="flex items-center gap-2">
                   <Badge 
                     variant="secondary" 
-                    className="text-xs"
+                    className="text-xs text-white"
                     style={{
-                      backgroundColor: `${teamColor.primary}30`,
-                      color: teamColor.primary
+                      backgroundColor: `${teamColor.primary}30`
                     }}
                   >
                     {player.team}
@@ -279,11 +283,9 @@ export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
                       <div className="w-8 text-sm font-medium text-slate-400">{stat.name}</div>
                       <div className="flex-1 h-2 bg-gray-800/50 rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full transition-all duration-500"
+                          className="h-full rounded-full transition-all duration-500 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                           style={{
-                            width: `${maxStat > 0 ? (stat.value / maxStat) * 100 : 0}%`,
-                            backgroundColor: teamColor.primary,
-                            opacity: 0.8
+                            width: `${(stat.value / stat.maxValue) * 100}%`
                           }}
                         />
                       </div>

@@ -4,6 +4,7 @@ import { TeamCard } from '@/components/nba/teamCard';
 import { PlayerCard } from '@/components/nba/playerCard';
 import { PlayerFilters } from '@/components/nba/player-filters';
 import { NBATabs } from '@/components/nba/nbaTabs';
+import { ProjectionTable } from '@/components/nba/projectionTable';
 import type { NBATeam, Player, NBATab } from '@/types/nba';
 import { motion } from 'framer-motion';
 import { useEffect, useState, useMemo } from 'react';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useNBAStore } from '@/store/nba-store';
 import { useSidebarStore } from '@/store/sidebar-store';
+import { Sparkles } from 'lucide-react';
 
 async function refreshTeams() {
   const res = await fetch('/api/nba/teams', {
@@ -113,6 +115,20 @@ export default function NBADashboard() {
     });
   }, [filteredPlayers]);
 
+  // Calculate max stats from all players
+  const maxStats = useMemo(() => {
+    return players.reduce((acc, player) => {
+      if (player.stats) {
+        acc.pts = Math.max(acc.pts, parseFloat(player.stats.pts || '0'));
+        acc.ast = Math.max(acc.ast, parseFloat(player.stats.ast || '0'));
+        acc.reb = Math.max(acc.reb, parseFloat(player.stats.reb || '0'));
+        acc.stl = Math.max(acc.stl, parseFloat(player.stats.stl || '0'));
+        acc.blk = Math.max(acc.blk, parseFloat(player.stats.blk || '0'));
+      }
+      return acc;
+    }, { pts: 0, ast: 0, reb: 0, stl: 0, blk: 0 });
+  }, [players]);
+
   const displayedPlayers = showTopPlayersOnly ? 
     processedPlayers.slice(0, 12) : 
     processedPlayers;
@@ -158,6 +174,15 @@ export default function NBADashboard() {
               ))}
             </motion.div>
           </div>
+        ) : activeTab === 'projections' ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="mt-6"
+          >
+            <ProjectionTable className="w-full" />
+          </motion.div>
         ) : (
           <div className="space-y-6 mt-6">
             <PlayerFilters
@@ -178,8 +203,9 @@ export default function NBADashboard() {
             >
               {displayedPlayers.map((player) => (
                 <PlayerCard 
-                  key={player.playerID} 
+                  key={`${player.longName}-${player.team}`} 
                   player={player}
+                  maxStats={maxStats}
                   sidebarWidth={sidebarWidth}
                 />
               ))}

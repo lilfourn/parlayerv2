@@ -336,4 +336,4 @@ export function getGameStatusText(statusCode: GameStatusCode): string {
   return GAME_STATUS_TEXT[statusCode];
 }
 
-export type NBATab = 'teams' | 'players';
+export type NBATab = 'teams' | 'players' | 'projections';
