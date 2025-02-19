@@ -6,7 +6,7 @@ import { Trophy, TrendingUp, LineChart } from "lucide-react"
 import { useState } from "react"
 
 interface NBATabsProps {
-  children?: React.ReactNode
+  children: React.ReactNode[]
   defaultTab?: string
 }
 
@@ -33,6 +33,13 @@ const tabItems = [
 
 export function NBATabs({ children, defaultTab = "teams" }: NBATabsProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
+
+  // Map of tab values to their content indices
+  const tabContentMap = {
+    teams: 0,
+    stats: 1,
+    projections: 2
+  }
 
   return (
     <div className="w-full space-y-4">
@@ -94,13 +101,7 @@ export function NBATabs({ children, defaultTab = "teams" }: NBATabsProps) {
             )}
           >
             <div className="relative z-10">
-              {activeTab === "teams" && children}
-              {activeTab === "stats" && (
-                <h2 className="text-2xl font-bold text-white/90 tracking-wide">NBA Stats</h2>
-              )}
-              {activeTab === "projections" && (
-                <h2 className="text-2xl font-bold text-white/90 tracking-wide">NBA Projections</h2>
-              )}
+              {children[tabContentMap[activeTab as keyof typeof tabContentMap]]}
             </div>
           </motion.div>
         </AnimatePresence>

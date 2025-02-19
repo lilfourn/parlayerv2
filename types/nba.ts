@@ -27,6 +27,10 @@ export interface PlayerInjury {
 }
 
 export interface PlayerStats {
+  tech: number;
+  PF: number;
+  usage: number;
+  fantasyPoints: number;
   blk: string;
   fga: string;
   DefReb: string;

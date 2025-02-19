@@ -92,20 +92,20 @@ function getTeamColors(teamAbv: string) {
 interface StatDisplay {
   label: string;
   key: keyof PlayerStats;
-  format: (value: string) => string;
+  format: (value: string | number) => string;
 }
 
 const playerStatDisplays: StatDisplay[] = [
-  { label: "Points", key: "pts", format: (v) => v },
-  { label: "Rebounds", key: "reb", format: (v) => v },
-  { label: "Assists", key: "ast", format: (v) => v },
-  { label: "Steals", key: "stl", format: (v) => v },
-  { label: "Blocks", key: "blk", format: (v) => v },
-  { label: "FG%", key: "fgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "3P%", key: "tptfgp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "FT%", key: "ftp", format: (v) => `${parseFloat(v).toFixed(1)}%` },
-  { label: "Minutes", key: "mins", format: (v) => v },
-  { label: "Games", key: "gamesPlayed", format: (v) => v },
+  { label: "Points", key: "pts", format: (v) => String(v) },
+  { label: "Rebounds", key: "reb", format: (v) => String(v) },
+  { label: "Assists", key: "ast", format: (v) => String(v) },
+  { label: "Steals", key: "stl", format: (v) => String(v) },
+  { label: "Blocks", key: "blk", format: (v) => String(v) },
+  { label: "FG%", key: "fgp", format: (v) => `${Number(v).toFixed(1)}%` },
+  { label: "3P%", key: "tptfgp", format: (v) => `${Number(v).toFixed(1)}%` },
+  { label: "FT%", key: "ftp", format: (v) => `${Number(v).toFixed(1)}%` },
+  { label: "Minutes", key: "mins", format: (v) => String(v) },
+  { label: "Games", key: "gamesPlayed", format: (v) => String(v) },
 ];
 
 const statDescriptions: Record<string, { full: string; description: string }> = {
