@@ -42,9 +42,19 @@ export function NBATabs({ children, activeTab, onChange }: NBATabsProps) {
 
   return (
     <div className="w-full space-y-4">
-      {/* Floating Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-md bg-background/40">
-        <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-[1400px] mx-auto mt-4">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className={cn(
+            "relative p-0 rounded-xl space-y-4",
+            "bg-gradient-to-br from-gray-900/90 to-gray-900/50",
+            "backdrop-blur-md border border-white/10",
+            "shadow-xl shadow-black/20"
+          )}
+        >
+          {/* Tabs Header */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-DEFAULT/20">
             {tabItems.map((item) => (
               <motion.button
@@ -79,33 +89,23 @@ export function NBATabs({ children, activeTab, onChange }: NBATabsProps) {
               </motion.button>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* Content Area */}
-      <div className="max-w-[1400px] mx-auto">
-        <AnimatePresence mode="wait">
-          {children && (
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className={cn(
-                "p-6",
-                "bg-gray-900",
-                "rounded-[24px]",
-                "relative overflow-hidden",
-                "transform-gpu transition-all duration-150 ease-out"
-              )}
-            >
-              <div className="relative z-10">
-                {children[tabContentMap[activeTab as keyof typeof tabContentMap]]}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Content Area */}
+          <AnimatePresence mode="wait">
+            {children && (
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="relative z-10"
+              >
+                {children[tabContentMap[activeTab]]}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   )
