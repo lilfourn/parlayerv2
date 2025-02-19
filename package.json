@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@atlaskit/avatar-group": "^11.2.0",
     "@formkit/auto-animate": "^0.8.2",
     "@heroicons/react": "^2.2.0",
     "@neondatabase/serverless": "^0.10.4",

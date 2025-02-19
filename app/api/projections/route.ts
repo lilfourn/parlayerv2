@@ -17,8 +17,8 @@ function connectRelationships(projection: Projection, included: IncludedItem[]):
   const { relationships } = projection;
   
   // Find the new_player data
-  let newPlayerData = relationships?.new_player?.data ? 
-    findIncludedItem(included, 'new_player', relationships.new_player.data.id) : null;
+  let newPlayerData: NewPlayer | null = relationships?.new_player?.data ? 
+    findIncludedItem(included, 'new_player', relationships.new_player.data.id) as NewPlayer : null;
   
   // If new_player exists and display_name is "team", create new object without team attribute
   if (newPlayerData && 
@@ -29,24 +29,25 @@ function connectRelationships(projection: Projection, included: IncludedItem[]):
       const { team, ...restAttributes } = playerAttributes;
       newPlayerData = {
         ...newPlayerData,
-        attributes: restAttributes
-      } as NewPlayer;
+        attributes: {
+          ...restAttributes,
+          team: team || '' // Ensure team is included with a default empty string
+        }
+      };
     }
   }
 
-  // Create connected data object
-  const connectedData = {
+  // Create connected data object with proper typing
+  return {
     ...projection,
     connected: {
-      new_player: newPlayerData,
+      new_player: newPlayerData || undefined,
       stat_average: relationships?.stat_average?.data ? 
-        findIncludedItem(included, 'stat_average', relationships.stat_average.data.id) : null,
+        findIncludedItem(included, 'stat_average', relationships.stat_average.data.id) as StatAverage : undefined,
       league: relationships?.league?.data ? 
-        findIncludedItem(included, 'league', relationships.league.data.id) : null
+        findIncludedItem(included, 'league', relationships.league.data.id) : undefined
     }
-  };
-
-  return connectedData;
+  } as Projection;
 }
 
 // Function to sort projections by is_live status
@@ -92,20 +93,20 @@ export async function GET() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const rawData = await response.json() as Props;
+    const rawData = await response.json() as Props & { included: IncludedItem[] };
     
     // Filter and sort projections
-    if (rawData.data && Array.isArray(rawData.data)) {
-      rawData.data = rawData.data
-        .filter((projection: Projection) => 
-          projection.attributes?.odds_type === 'standard' && 
-          !projection.attributes?.description?.includes('SZN')
-        )
-        .map(projection => connectRelationships(projection, rawData.included))
-        .sort(sortByLiveStatus);
-    }
+    const processedData = Array.isArray(rawData.data) 
+      ? rawData.data
+          .filter((projection: Projection) => 
+            projection.attributes?.odds_type === 'standard' && 
+            !projection.attributes?.description?.includes('SZN')
+          )
+          .map(projection => connectRelationships(projection, rawData.included))
+          .sort(sortByLiveStatus)
+      : [];
 
-    const cleanData = removeNullAttributes(rawData);
+    const cleanData = removeNullAttributes({ data: processedData });
 
     return NextResponse.json({
       success: true,

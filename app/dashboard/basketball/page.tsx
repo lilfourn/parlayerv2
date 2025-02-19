@@ -13,6 +13,7 @@ import { RefreshCw } from 'lucide-react';
 import { useNBAStore } from '@/store/nba-store';
 import { useSidebarStore } from '@/store/sidebar-store';
 import { Sparkles } from 'lucide-react';
+import { Toaster } from "@/components/ui/toaster";
 
 async function refreshTeams() {
   const res = await fetch('/api/nba/teams', {
@@ -142,6 +143,7 @@ export default function NBADashboard() {
         transition: 'padding 0.4s ease'
       }}
     >
+      <Toaster />
       <div className="fixed top-0 right-4 p-4 z-10">
         <Button 
           onClick={handleRefresh}

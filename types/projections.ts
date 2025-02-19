@@ -12,6 +12,7 @@ export interface NewPlayer {
     type: 'new_player';
     id: string;
     attributes: {
+        custom_image: any;
         combo: boolean;
         display_name: string;
         image_url: string | null;

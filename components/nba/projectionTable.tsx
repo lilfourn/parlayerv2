@@ -24,6 +24,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { useNBAStore } from "@/store/nba-store"
 import { useState } from "react"
+import {cn} from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { LineMovementToast } from "./line-movement-toast"
 
 interface ProjectionTableProps {
   className?: string
@@ -40,8 +43,11 @@ const NBA_LEAGUE_IDS = {
   NBA_FUTURES: 173
 } as const
 
+// Create a type for valid league IDs
+type NBALeagueId = typeof NBA_LEAGUE_IDS[keyof typeof NBA_LEAGUE_IDS]
+
 // Create an array of valid league IDs
-const VALID_LEAGUE_IDS = Object.values(NBA_LEAGUE_IDS)
+const VALID_LEAGUE_IDS: NBALeagueId[] = Object.values(NBA_LEAGUE_IDS)
 
 export function ProjectionTable({ className }: ProjectionTableProps) {
   const [selectedStatType, setSelectedStatType] = useState<string>("all")
@@ -56,39 +62,57 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
     calculateLineMovements
   } = useNBAStore()
 
+  // Initial load
   useEffect(() => {
-    loadProjections()
+    // Only load if we don't have projections and aren't already loading
+    if (!isLoadingProjections) {
+      loadProjections()
+    }
+  }, [loadProjections, isLoadingProjections])
+
+  // Set up hourly refresh interval
+  useEffect(() => {
+    const interval = setInterval(loadProjections, 3600000)
+    return () => clearInterval(interval)
   }, [loadProjections])
 
-  // Calculate line movements for all projections
-  const lineMovements = useMemo(() => 
-    calculateLineMovements(projections)
-  , [projections, calculateLineMovements])
+  // Filter projections for NBA leagues and calculate line movements
+  const nbaProjections = useMemo(() => 
+    projections.filter(proj => {
+      const leagueId = proj.player?.attributes.league_id
+      return leagueId && VALID_LEAGUE_IDS.includes(leagueId as NBALeagueId)
+    })
+  , [projections])
 
-  // Extract unique stat types from projections
+  // Calculate line movements for NBA projections
+  const lineMovements = useMemo(() => 
+    calculateLineMovements(nbaProjections)
+  , [nbaProjections, calculateLineMovements])
+
+  // Extract unique stat types from NBA projections
   const statTypes = useMemo(() => {
     const types = new Set<string>()
-    projections.forEach((proj) => {
+    nbaProjections.forEach((proj) => {
       const statType = proj.projection.attributes.stat_display_name
       if (statType) types.add(statType)
     })
     return Array.from(types).sort()
-  }, [projections])
+  }, [nbaProjections])
 
   // Filter projections by selected stat type
   const filteredProjections = useMemo(() => 
     selectedStatType === "all" 
-      ? projections 
-      : projections.filter(proj => 
+      ? nbaProjections 
+      : nbaProjections.filter(proj => 
           proj.projection.attributes.stat_display_name === selectedStatType
         )
-  , [projections, selectedStatType])
+  , [nbaProjections, selectedStatType])
 
   // Handle manual refresh with loading state
   async function handleRefresh() {
     setIsRefreshing(true)
     try {
-      await loadProjections()
+      await loadProjections(true) // Force refresh
     } finally {
       setIsRefreshing(false)
     }
@@ -111,116 +135,153 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
   }
 
   return (
-    <Card className={className}>
-      <div className="p-4 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FilterIcon className="h-4 w-4 text-muted-foreground" />
-          <Select
-            value={selectedStatType}
-            onValueChange={setSelectedStatType}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select stat type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stats</SelectItem>
-              {statTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {lastProjectionsUpdate && (
-            <span className="text-sm text-muted-foreground">
-              Last updated: {formatDistanceToNow(lastProjectionsUpdate, { addSuffix: true })}
-            </span>
-          )}
-          <Button 
+    <Card className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-none shadow-lg">
+      <LineMovementToast lineMovements={lineMovements} projections={nbaProjections} />
+      <div className="p-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedStatType}
+              onValueChange={setSelectedStatType}
+            >
+              <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700 transition-colors">
+                <SelectValue placeholder="Select stat type" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectItem value="all" className="text-gray-200 hover:bg-gray-700">All Stats</SelectItem>
+                {statTypes.map((type) => (
+                  <SelectItem 
+                    key={type} 
+                    value={type}
+                    className="text-gray-200 hover:bg-gray-700"
+                  >
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={handleRefresh}
             disabled={isRefreshing || isLoadingProjections}
-            variant="outline"
-            size="sm"
+            className={cn(
+              "bg-gray-800 border-gray-700 text-gray-200 transition-all",
+              (isRefreshing || isLoadingProjections) ? "opacity-50" : "hover:bg-gray-700"
+            )}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={cn(
+              "h-4 w-4",
+              (isRefreshing || isLoadingProjections) && "animate-spin"
+            )} />
           </Button>
         </div>
-      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Player</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Stat Type</TableHead>
-            <TableHead className="text-right">Line</TableHead>
-            <TableHead>Movement</TableHead>
-            <TableHead>Updated</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoadingProjections ? (
-            Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={index}>
-                {Array.from({ length: 6 }).map((_, cellIndex) => (
-                  <TableCell key={cellIndex}>
-                    <Skeleton className="h-4 w-[100px]" />
-                  </TableCell>
-                ))}
+        {lastProjectionsUpdate && (
+          <p className="text-sm text-gray-400">
+            Last updated: {formatDistanceToNow(new Date(lastProjectionsUpdate), { addSuffix: true })}
+          </p>
+        )}
+
+        <div className="rounded-md border border-gray-700 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-800 hover:bg-gray-800 border-b border-gray-700">
+                <TableHead className="text-gray-200 font-semibold">Player</TableHead>
+                <TableHead className="text-gray-200 font-semibold">Team</TableHead>
+                <TableHead className="text-gray-200 font-semibold">Stat</TableHead>
+                <TableHead className="text-gray-200 font-semibold text-right">Line</TableHead>
+                <TableHead className="text-gray-200 font-semibold text-right">Movement</TableHead>
               </TableRow>
-            ))
-          ) : filteredProjections.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={6} className="text-center py-4">
-                No projections found for selected stat type
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredProjections.map((projection) => (
-              <TableRow key={projection.projection.id}>
-                <TableCell className="font-medium">
-                  {projection.player?.attributes.display_name}
-                </TableCell>
-                <TableCell>{projection.player?.attributes.team_name}</TableCell>
-                <TableCell>{projection.projection.attributes.stat_display_name}</TableCell>
-                <TableCell className="text-right">
-                  {projection.projection.attributes.line_score}
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const movement = lineMovements.get(projection.projection.id)
-                    if (!movement) return null
-
-                    if (movement.direction === 'none') {
-                      return <span className="text-muted-foreground text-sm">No Change</span>
-                    }
-
-                    return (
-                      <div className="flex items-center gap-1">
-                        {movement.direction === "up" ? (
-                          <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <ArrowDownIcon className="h-4 w-4 text-red-500" />
-                        )}
-                        <span className="text-sm">
-                          {movement.difference.toFixed(1)}
-                        </span>
+            </TableHeader>
+            <TableBody>
+              {isLoadingProjections ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={index} className="bg-gray-900/50 hover:bg-gray-800/70 transition-colors border-b border-gray-700">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-8 rounded-full bg-gray-800" />
+                        <Skeleton className="h-4 w-[150px] bg-gray-800" />
                       </div>
-                    )
-                  })()}
-                </TableCell>
-                <TableCell>
-                  {formatDistanceToNow(new Date(projection.projection.attributes.updated_at), { addSuffix: true })}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-[60px] bg-gray-800" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[100px] bg-gray-800" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[60px] bg-gray-800" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px] bg-gray-800" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                filteredProjections.map((proj) => {
+                  const movement = lineMovements.get(proj.projection.id)
+                  return (
+                    <TableRow 
+                      key={proj.projection.id}
+                      className="bg-gray-900/50 hover:bg-gray-800/70 transition-colors border-b border-gray-700"
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className={cn(
+                            "h-8",
+                            proj.player?.attributes.combo 
+                              ? "w-12 rounded-lg" 
+                              : "w-8 rounded-full"
+                          )}>
+                            {proj.player?.attributes.image_url ? (
+                              <AvatarImage
+                                src={proj.player.attributes.image_url}
+                                alt={proj.player.attributes.display_name}
+                              />
+                            ) : (
+                              <AvatarFallback>
+                                {proj.player?.attributes.display_name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <span className="font-medium text-gray-200">
+                            {proj.player?.attributes.display_name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-gray-200">
+                        {proj.player?.attributes.team_name}
+                      </TableCell>
+                      <TableCell className="text-gray-200">
+                        {proj.projection.attributes.stat_display_name}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-gray-200">
+                        {proj.projection.attributes.line_score}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {movement && (
+                          <div className={cn(
+                            "flex items-center justify-end gap-1",
+                            movement.direction === 'up' ? "text-green-400" : 
+                            movement.direction === 'down' ? "text-red-400" : 
+                            "text-gray-400"
+                          )}>
+                            {movement.direction === 'up' ? (
+                              <ArrowUpIcon className="h-4 w-4" />
+                            ) : movement.direction === 'down' ? (
+                              <ArrowDownIcon className="h-4 w-4" />
+                            ) : null}
+                            <span>
+                              {movement.direction === 'none' ? 
+                                "None" : 
+                                movement.difference.toFixed(1)
+                              }
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </Card>
   )
 }

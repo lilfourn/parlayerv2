@@ -3,7 +3,7 @@ import { NBATeam, Player } from '@/types/nba';
 import { ProjectionWithAttributes } from '@/types/projections';
 import { getTeams, getPlayers } from '@/app/actions/nba';
 
-interface LineMovement {
+export interface LineMovement {
   direction: 'up' | 'down' | 'none'
   difference: number
 }
@@ -11,18 +11,22 @@ interface LineMovement {
 interface NBAProjStore {
   teams: NBATeam[];
   players: Player[];
-  projections: ProjectionWithAttributes[]
-  cachedProjections: ProjectionWithAttributes[]
+  projections: ProjectionWithAttributes[];
+  cachedProjections: ProjectionWithAttributes[];
   isLoadingTeams: boolean;
   isLoadingPlayers: boolean;
   isLoadingProjections: boolean;
   error: string | null;
   lastProjectionsUpdate: Date | null;
+  isFetchingProjections: boolean;
   loadTeams: () => Promise<void>;
   loadPlayers: () => Promise<void>;
-  loadProjections: () => Promise<void>;
+  loadProjections: (forceRefresh?: boolean) => Promise<void>;
   calculateLineMovements: (newProjections: ProjectionWithAttributes[]) => Map<string, LineMovement>
 }
+
+// Time threshold for refetching projections (5 minutes)
+const PROJECTION_REFRESH_THRESHOLD = 5 * 60 * 1000;
 
 export const useNBAStore = create<NBAProjStore>((set, get) => ({
   teams: [],
@@ -34,6 +38,7 @@ export const useNBAStore = create<NBAProjStore>((set, get) => ({
   isLoadingProjections: false,
   error: null,
   lastProjectionsUpdate: null,
+  isFetchingProjections: false,
 
   calculateLineMovements: (newProjections: ProjectionWithAttributes[]) => {
     const { cachedProjections } = get()
@@ -87,13 +92,26 @@ export const useNBAStore = create<NBAProjStore>((set, get) => ({
     }
   },
 
-  loadProjections: async () => {
+  loadProjections: async (forceRefresh = false) => {
     const currentState = get()
     
-    set({ isLoadingProjections: true, error: null })
+    // Check if we're already fetching or if it's too soon to fetch again
+    if (currentState.isFetchingProjections) {
+      return
+    }
+
+    const lastUpdate = currentState.lastProjectionsUpdate
+    const timeSinceLastUpdate = lastUpdate ? Date.now() - lastUpdate.getTime() : Infinity
+
+    // If we have projections and it's been less than 5 minutes, use cached data
+    // Unless forceRefresh is true
+    if (!forceRefresh && currentState.projections.length > 0 && timeSinceLastUpdate < PROJECTION_REFRESH_THRESHOLD) {
+      return
+    }
+    
+    set({ isLoadingProjections: true, error: null, isFetchingProjections: true })
     
     try {
-      // Fetch NBA projections
       const response = await fetch('/api/projections?league=nba')
       if (!response.ok) throw new Error('Failed to fetch projections')
       
@@ -113,12 +131,15 @@ export const useNBAStore = create<NBAProjStore>((set, get) => ({
       set({ 
         projections: projectionsArray,
         lastProjectionsUpdate: new Date(),
-        isLoadingProjections: false 
+        isLoadingProjections: false,
+        isFetchingProjections: false,
+        error: null
       })
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load projections',
-        isLoadingProjections: false 
+        isLoadingProjections: false,
+        isFetchingProjections: false
       })
     }
   },
