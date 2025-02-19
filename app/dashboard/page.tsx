@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { ArrowRight } from "lucide-react"
+import { useNBAStore } from "@/store/nba-store"
 
 interface SportCard {
   title: string
@@ -58,6 +59,7 @@ const sportsCards: SportCard[] = [
 
 export default function DashboardPage() {
   const [sidebarWidth, setSidebarWidth] = useState(72)
+  const loadTeams = useNBAStore(state => state.loadTeams);
 
   useEffect(() => {
     const sidebar = document.querySelector('[class*="fixed left-0 top-0 h-screen"]')
@@ -72,6 +74,10 @@ export default function DashboardPage() {
     resizeObserver.observe(sidebar)
     return () => resizeObserver.disconnect()
   }, [])
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
 
   return (
     <motion.div 

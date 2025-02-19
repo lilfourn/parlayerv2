@@ -227,7 +227,7 @@ export interface PlayerGameStats {
   team: string;
   teamAbv: string;
   pts: string;
-  PF: string;
+  PF: number;
   TOV: string;
   longName: string;
   playerID: string;
@@ -263,7 +263,7 @@ export interface TeamGameStats {
   team: string;
   teamAbv: string;
   pts: string;
-  PF: string;
+  PF: number;
   TOV: string;
   ptsOffTOV: string;
   numberOfPossessions: string;
@@ -335,3 +335,5 @@ export const GAME_STATUS_TEXT: Record<GameStatusCode, string> = {
 export function getGameStatusText(statusCode: GameStatusCode): string {
   return GAME_STATUS_TEXT[statusCode];
 }
+
+export type NBATab = 'teams' | 'players';

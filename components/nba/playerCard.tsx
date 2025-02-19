@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Player, PlayerStats, ParsedPlayerGameStats } from '@/types/nba';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp, Trophy, Star, Target, Info } from 'lucide-react';
@@ -36,6 +36,7 @@ const teamColors: Record<string, { primary: string; secondary: string }> = {
   ORL: { primary: '#0077C0', secondary: '#C4CED4' },
   PHI: { primary: '#006BB6', secondary: '#ED174C' },
   PHX: { primary: '#1D1160', secondary: '#E56020' },
+  PHO: { primary: '#1D1160', secondary: '#E56020' },
   POR: { primary: '#E03A3E', secondary: '#000000' },
   SAC: { primary: '#5A2D81', secondary: '#63727A' },
   SAS: { primary: '#C4CED4', secondary: '#000000' },
@@ -121,7 +122,7 @@ export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
     >
       <Card
         className={cn(
-          "relative w-full overflow-hidden transition-all duration-300 group hover:shadow-lg border-0",
+          "relative w-full overflow-hidden group hover:shadow-lg border-0",
           isExpanded ? "h-auto" : "h-[180px]"
         )}
         style={{
@@ -153,6 +154,7 @@ export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
           className="relative p-4 space-y-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
           layout
+          transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
         >
           {/* Header Section */}
           <div className="flex items-start justify-between">
@@ -216,88 +218,95 @@ export function PlayerCard({ player, sidebarWidth = 350 }: PlayerCardProps) {
           </div>
 
           {/* Expanded Content */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isExpanded ? 1 : 0 }}
-            className={cn(
-              "transition-all duration-300",
-              isExpanded ? "block" : "hidden"
-            )}
-          >
-            {/* Player Details */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <div className="text-sm text-slate-400">Height</div>
-                <div className="text-slate-100">{formatHeight(player.height)}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm text-slate-400">Weight</div>
-                <div className="text-slate-100">{player.weight} lbs</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm text-slate-400">College</div>
-                <div className="text-slate-100">{player.college || 'N/A'}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm text-slate-400">Experience</div>
-                <div className="text-slate-100">{player.exp} years</div>
-              </div>
-            </div>
+          <AnimatePresence initial={false}>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{
+                  type: "spring",
+                  duration: 0.5,
+                  bounce: 0.1
+                }}
+                className="overflow-hidden"
+              >
+                {/* Player Details */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-400">Height</div>
+                    <div className="text-slate-100">{formatHeight(player.height)}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-400">Weight</div>
+                    <div className="text-slate-100">{player.weight} lbs</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-400">College</div>
+                    <div className="text-slate-100">{player.college || 'N/A'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-400">Experience</div>
+                    <div className="text-slate-100">{player.exp} years</div>
+                  </div>
+                </div>
 
-            {/* Advanced Stats Section */}
-            <div className="grid grid-cols-5 gap-2 mb-4">
-              {advancedStatDisplays.map((stat, index) => (
-                <TooltipProvider key={stat.key}>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <div className="flex flex-col items-center p-2 rounded-lg bg-slate-800/50">
-                        <span className="text-xs text-slate-400">{stat.label}</span>
-                        <span className="text-lg font-semibold text-slate-100">
-                          {player.stats ? stat.format(player.stats[stat.key]) : '-'}
-                        </span>
+                {/* Advanced Stats Section */}
+                <div className="grid grid-cols-5 gap-2 mb-4">
+                  {advancedStatDisplays.map((stat, index) => (
+                    <TooltipProvider key={stat.key}>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <div className="flex flex-col items-center p-2 rounded-lg bg-slate-800/50">
+                            <span className="text-xs text-slate-400">{stat.label}</span>
+                            <span className="text-lg font-semibold text-slate-100">
+                              {player.stats ? stat.format(player.stats[stat.key]) : '-'}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{stat.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
+
+                {/* Stats Bar Chart */}
+                <div className="mt-4 space-y-2">
+                  {statsData.map((stat) => (
+                    <div key={stat.name} className="flex items-center gap-2">
+                      <div className="w-8 text-sm font-medium text-slate-400">{stat.name}</div>
+                      <div className="flex-1 h-2 bg-gray-800/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${maxStat > 0 ? (stat.value / maxStat) * 100 : 0}%`,
+                            backgroundColor: teamColor.primary,
+                            opacity: 0.8
+                          }}
+                        />
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{stat.label}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ))}
-            </div>
-
-            {/* Stats Bar Chart */}
-            <div className="mt-4 space-y-2">
-              {statsData.map((stat) => (
-                <div key={stat.name} className="flex items-center gap-2">
-                  <div className="w-8 text-sm font-medium text-slate-400">{stat.name}</div>
-                  <div className="flex-1 h-2 bg-gray-800/50 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${maxStat > 0 ? (stat.value / maxStat) * 100 : 0}%`,
-                        backgroundColor: teamColor.primary,
-                        opacity: 0.8
-                      }}
-                    />
-                  </div>
-                  <div className="w-8 text-sm text-slate-400 text-right">
-                    {stat.value.toFixed(1)}
-                  </div>
+                      <div className="w-8 text-sm text-slate-400 text-right">
+                        {stat.value.toFixed(1)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {/* Injury Information */}
-            {player.injury && (
-              <div className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                <h4 className="text-sm font-medium text-red-400 mb-2">Injury Status</h4>
-                <div className="text-sm text-slate-300">{player.injury.description}</div>
-                <div className="text-xs text-slate-400 mt-1">
-                  Return Date: {player.injury.injReturnDate || 'Unknown'}
-                </div>
-              </div>
+                {/* Injury Information */}
+                {player.injury && (
+                  <div className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                    <h4 className="text-sm font-medium text-red-400 mb-2">Injury Status</h4>
+                    <div className="text-sm text-slate-300">{player.injury.description}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      Return Date: {player.injury.injReturnDate || 'Unknown'}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </motion.div>
+          </AnimatePresence>
         </motion.div>
       </Card>
     </motion.div>

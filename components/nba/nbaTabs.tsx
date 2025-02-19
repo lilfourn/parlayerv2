@@ -6,39 +6,31 @@ import { Trophy, TrendingUp, LineChart } from "lucide-react"
 import { useState } from "react"
 
 interface NBATabsProps {
-  children: React.ReactNode[]
-  defaultTab?: string
+  activeTab: 'teams' | 'players';
+  onChange: (tab: 'teams' | 'players') => void;
+  children?: React.ReactNode[];
 }
 
 const tabItems = [
   {
-    value: "teams",
+    value: "teams" as const,
     label: "Teams",
     icon: Trophy,
     description: "View team standings and stats"
   },
   {
-    value: "stats",
-    label: "Stats",
+    value: "players" as const,
+    label: "Players",
     icon: LineChart,
-    description: "Player and team analytics"
-  },
-  {
-    value: "projections",
-    label: "Projections",
-    icon: TrendingUp,
-    description: "Future performance predictions"
+    description: "Player stats and profiles"
   }
 ]
 
-export function NBATabs({ children, defaultTab = "teams" }: NBATabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab)
-
+export function NBATabs({ children, activeTab, onChange }: NBATabsProps) {
   // Map of tab values to their content indices
   const tabContentMap = {
     teams: 0,
-    stats: 1,
-    projections: 2
+    players: 1
   }
 
   return (
@@ -50,7 +42,7 @@ export function NBATabs({ children, defaultTab = "teams" }: NBATabsProps) {
             {tabItems.map((item) => (
               <motion.button
                 key={item.value}
-                onClick={() => setActiveTab(item.value)}
+                onClick={() => onChange(item.value)}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg",
                   "transition-all duration-300",
@@ -86,24 +78,26 @@ export function NBATabs({ children, defaultTab = "teams" }: NBATabsProps) {
       {/* Content Area */}
       <div className="max-w-[1400px] mx-auto">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={cn(
-              "p-6",
-              "bg-gray-900",
-              "rounded-[24px]",
-              "relative overflow-hidden",
-              "transform-gpu transition-all duration-150 ease-out"
-            )}
-          >
-            <div className="relative z-10">
-              {children[tabContentMap[activeTab as keyof typeof tabContentMap]]}
-            </div>
-          </motion.div>
+          {children && (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={cn(
+                "p-6",
+                "bg-gray-900",
+                "rounded-[24px]",
+                "relative overflow-hidden",
+                "transform-gpu transition-all duration-150 ease-out"
+              )}
+            >
+              <div className="relative z-10">
+                {children[tabContentMap[activeTab as keyof typeof tabContentMap]]}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>

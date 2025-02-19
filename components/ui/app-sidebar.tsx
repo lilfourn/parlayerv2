@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useSidebarStore } from "@/store/sidebar-store";
 
 const menuItems = [
   { id: 1, icon: Home, label: 'Dashboard', href: '/dashboard', notification: 2 },
@@ -35,11 +36,25 @@ const COLLAPSE_DELAY = 500; // 2 seconds in milliseconds
 const EXPAND_DELAY = 150;
 
 const Sidebar = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { isExpanded, setIsExpanded, setWidth } = useSidebarStore();
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const expandTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (!sidebarRef.current) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(sidebarRef.current);
+    return () => resizeObserver.disconnect();
+  }, [setWidth]);
 
   const handleMouseEnter = useCallback(() => {
     if (collapseTimer.current) {
@@ -48,7 +63,7 @@ const Sidebar = () => {
     expandTimer.current = setTimeout(() => {
       setIsExpanded(true);
     }, EXPAND_DELAY);
-  }, []);
+  }, [setIsExpanded]);
 
   const handleMouseLeave = useCallback(() => {
     if (expandTimer.current) {
@@ -57,10 +72,11 @@ const Sidebar = () => {
     collapseTimer.current = setTimeout(() => {
       setIsExpanded(false);
     }, COLLAPSE_DELAY);
-  }, []);
+  }, [setIsExpanded]);
 
   return (
     <motion.div
+      ref={sidebarRef}
       className="fixed left-0 top-0 h-screen bg-gray-900 text-white rounded-r-xl shadow-xl z-50 overflow-hidden"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
