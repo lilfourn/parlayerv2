@@ -229,6 +229,9 @@ export interface PlayerGameStats {
   playerID: string;
   usage: string;
   fantasyPoints: string;
+  headshotUrl?: string | null;
+  nbaComHeadshot?: string;
+  espnHeadshot?: string;
 }
 
 export interface TeamGameStats {

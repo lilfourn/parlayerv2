@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GameStatsDialog } from './gameStatsDialog';
+import { PlayerAvatar } from './playerAvatar';
 
 interface TeamCardProps {
   team: NBATeam;
@@ -302,11 +303,12 @@ interface BoxScore {
 }
 
 export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
-  const [boxScores, setBoxScores] = useState<Record<string, BoxScore>>({});
+  const [boxScores, setBoxScores] = useState<Record<string, BoxScoreResponse['body']>>({});
   const [isLoadingBoxScores, setIsLoadingBoxScores] = useState(false);
   const [allTeams, setAllTeams] = useState<NBATeam[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [rotateX, setRotateX] = useState(0);
+  const [gameFilter, setGameFilter] = useState<'upcoming' | 'completed'>('upcoming');
 
   useEffect(() => {
     const fetchAllTeams = async () => {
@@ -339,7 +341,7 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
 
   // Fetch box scores when expanded
   useEffect(() => {
-    if (isExpanded && Object.keys(boxScores).length === 0) {
+    if (isExpanded && Object.keys(boxScores || {}).length === 0) {
       fetchBoxScores();
     }
   }, [isExpanded]);
@@ -347,10 +349,24 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
   const fetchBoxScores = async () => {
     try {
       setIsLoadingBoxScores(true);
-      const gameIds = Object.keys(team.teamSchedule).join(',');
-      const response = await fetch(`/api/nba/boxScores?gameIds=${gameIds}`);
+      // Only fetch box scores for completed games
+      const completedGames = Object.entries(team.teamSchedule || {})
+        .filter(([_, game]) => isGameCompleted(game.gameTime_epoch))
+        .map(([_, game]) => game.gameID);
+
+      if (completedGames.length === 0) {
+        setBoxScores({});
+        return;
+      }
+
+      const response = await fetch(`/api/nba/boxScores?gameIds=${completedGames.join(',')}`);
       const data = await response.json();
-      setBoxScores(data.body);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch box scores');
+      }
+
+      setBoxScores(data.data);
     } catch (error) {
       console.error('Error fetching box scores:', error);
     } finally {
@@ -492,6 +508,123 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
       matchupText: isHome ? 'vs.' : '@'
     };
   }
+
+  // Function to determine if a game is completed
+  function isGameCompleted(gameTime: string): boolean {
+    const gameDate = new Date(parseInt(gameTime) * 1000);
+    return gameDate < new Date();
+  }
+
+  const renderGamePreview = (game: GameSchedule) => {
+    const isCompleted = isGameCompleted(game.gameTime_epoch);
+    const boxScore = isCompleted ? boxScores[game.gameID] : null;
+    const opponent = game.home === team.teamAbv ? game.away : game.home;
+    const isHome = game.home === team.teamAbv;
+    const opponentTeam = allTeams.find(t => t.teamAbv === opponent);
+    const gameDate = new Date(parseInt(game.gameTime_epoch) * 1000);
+
+    return (
+      <div key={game.gameID} className="relative">
+        <GameStatsDialog 
+          gameId={game.gameID}
+          homeTeam={game.home}
+          awayTeam={game.away}
+        >
+          <div className={cn(
+            "flex items-center justify-between p-3 rounded-xl",
+            "hover:bg-white/5 transition-colors cursor-pointer",
+            "border border-transparent hover:border-white/10",
+            "bg-gradient-to-r from-gray-800/70 to-gray-800/40",
+            "backdrop-blur-sm"
+          )}>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2">
+                {/* Selected Team (Always First) */}
+                <div className="flex items-center gap-1.5">
+                  <Image
+                    src={team.nbaComLogo1}
+                    alt={team.teamAbv}
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
+                  <span className="text-white/90 text-sm font-medium">
+                    {team.teamAbv}
+                  </span>
+                </div>
+
+                {/* Matchup Indicator */}
+                <div className="flex items-center px-2">
+                  <span className={cn(
+                    "text-sm font-medium",
+                    isCompleted ? "text-white/40" : "text-white/60"
+                  )}>
+                    {isHome ? 'vs' : '@'}
+                  </span>
+                </div>
+
+                {/* Opponent Team (Always Second) */}
+                <div className="flex items-center gap-1.5">
+                  <Image
+                    src={opponentTeam?.nbaComLogo1 || ''}
+                    alt={opponent}
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
+                  <span className="text-white/90 text-sm font-medium">
+                    {opponent}
+                  </span>
+                </div>
+
+                {/* Score (if completed) */}
+                {isCompleted && boxScore && (
+                  <div className="ml-3 flex items-center">
+                    <span className="text-sm font-semibold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+                      {isHome ? (
+                        <>
+                          {boxScore.homePts} - {boxScore.awayPts}
+                          <span className="ml-1.5 text-xs text-white/40">
+                            {parseInt(boxScore.homePts) > parseInt(boxScore.awayPts) ? 'W' : 'L'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {boxScore.awayPts} - {boxScore.homePts}
+                          <span className="ml-1.5 text-xs text-white/40">
+                            {parseInt(boxScore.awayPts) > parseInt(boxScore.homePts) ? 'W' : 'L'}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {!isCompleted && (
+                <div className="text-sm text-white/40">
+                  {gameDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px] px-1.5 py-0.5",
+                  isCompleted 
+                    ? "text-green-500 border-green-500/20 bg-green-500/10"
+                    : "text-blue-500 border-blue-500/20 bg-blue-500/10"
+                )}
+              >
+                {isCompleted ? 'Final' : 'Upcoming'}
+              </Badge>
+            </div>
+          </div>
+        </GameStatsDialog>
+      </div>
+    );
+  };
 
   return (
     <motion.div
@@ -763,77 +896,43 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                         className={cn(
-                          "relative p-3 sm:p-4 rounded-xl",
-                          "bg-gradient-to-r from-gray-800/50 via-gray-800/30 to-transparent",
-                          "group hover:from-gray-800/70 hover:via-gray-800/50 hover:to-transparent",
-                          "transition-all duration-300 ease-out",
-                          "border border-white/5",
-                          "flex flex-col sm:flex-row items-start sm:items-center gap-4"
+                          "flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                         )}
                       >
-                        {/* Category Badge and Value */}
-                        <div className="flex items-center gap-4 min-w-[180px]">
-                          <div className={cn(
-                            "p-2 rounded-lg shrink-0",
-                            index === 0 ? "bg-yellow-500/20" : 
-                            index === 1 ? "bg-blue-500/20" : 
-                            "bg-purple-500/20"
-                          )}>
-                            <Icon className={cn(
-                              "w-5 h-5",
-                              index === 0 ? "text-yellow-500" :
-                              index === 1 ? "text-blue-500" :
-                              "text-purple-500"
-                            )} />
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-white/80 font-medium capitalize block text-sm">
-                                {statInfo?.full || category}
-                              </span>
-                              <TooltipProvider>
-                                <Tooltip delayDuration={50}>
-                                  <TooltipTrigger asChild>
-                                    <button className="focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 rounded-full">
-                                      <Info className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent 
-                                    side="top"
-                                    align="center"
-                                    className="bg-gray-900/95 border-gray-800 backdrop-blur-sm px-3 py-2"
-                                    sideOffset={4}
-                                  >
-                                    <p className="text-sm font-medium">
-                                      {statInfo?.description || `${category.toUpperCase()} per game`}
-                                    </p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                            <div className="text-xl font-bold text-white">
-                              {data.total}
-                            </div>
+                        <div className="flex-shrink-0">
+                          <Icon className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <div className="flex-grow">
+                          <div className="text-sm font-medium text-white/80">{statInfo?.full || category}</div>
+                          <div className="text-xs text-white/60">{statInfo?.description || `${category.toUpperCase()} per game`}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-lg font-bold text-white">{data.total}</div>
+                          <div className="flex -space-x-2">
+                            {data.playerID.map((playerId) => {
+                              const player = team.Roster[playerId];
+                              if (!player) return null;
+                              return (
+                                <TooltipProvider key={playerId}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="first:ml-0 hover:translate-y-[-2px] transition-transform duration-200">
+                                        <PlayerAvatar
+                                          player={player}
+                                          size="sm"
+                                          className="border-2 border-gray-900 hover:border-white/20 transition-colors duration-200"
+                                        />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="font-medium">{player.longName}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
                           </div>
                         </div>
-
-                        {/* Players */}
-                        <div className="flex flex-wrap gap-3 flex-1">
-                          {data.playerID.map((id: string) => {
-                            const player = team.Roster[id];
-                            if (!player) return null;
-                            return (
-                              <PlayerStatsDialog 
-                                key={id} 
-                                player={player} 
-                                stats={player.stats} 
-                              />
-                            );
-                          })}
-                        </div>
-
-                        {/* Decorative Elements */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
                       </motion.div>
                     );
                   })}
@@ -852,65 +951,40 @@ export function TeamCard({ team, sidebarWidth }: TeamCardProps) {
                   "shadow-xl shadow-black/20"
                 )}
               >
-                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white/90">Recent Games</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-white/90">Recent Games</h3>
+                  <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
+                    <button
+                      onClick={() => setGameFilter('upcoming')}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-sm font-medium transition-all duration-200",
+                        gameFilter === 'upcoming' 
+                          ? "bg-white/10 text-white" 
+                          : "text-white/60 hover:text-white/80"
+                      )}
+                    >
+                      Upcoming
+                    </button>
+                    <button
+                      onClick={() => setGameFilter('completed')}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-sm font-medium transition-all duration-200",
+                        gameFilter === 'completed' 
+                          ? "bg-white/10 text-white" 
+                          : "text-white/60 hover:text-white/80"
+                      )}
+                    >
+                      Completed
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-3">
-                  {Object.entries(team.teamSchedule || {}).map(([gameId, game], index) => {
-                    const { isHome, opponent, matchupText } = getGameContext(game, team.teamAbv);
-                    return (
-                      <GameStatsDialog 
-                        key={gameId}
-                        gameId={gameId}
-                        homeTeam={game.home}
-                        awayTeam={game.away}
-                      >
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className={cn(
-                            "relative p-4 rounded-xl",
-                            "bg-gradient-to-r from-gray-800/70 to-gray-800/40",
-                            "border border-white/10",
-                            "hover:border-white/20 transition-all duration-200",
-                            "group cursor-pointer",
-                            "shadow-lg shadow-black/10",
-                            "backdrop-blur-sm"
-                          )}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl" />
-                          
-                          <div className="relative flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <Image
-                                  src={team.nbaComLogo1}
-                                  alt={team.teamAbv}
-                                  width={20}
-                                  height={20}
-                                  className="object-contain"
-                                />
-                                <span className="text-white/90 text-sm font-medium">{team.teamAbv}</span>
-                              </div>
-                              <span className="text-white/60">{matchupText}</span>
-                              <div className="flex items-center gap-1">
-                                <Image
-                                  src={allTeams.find(t => t.teamAbv === opponent)?.nbaComLogo1 || ''}
-                                  alt={opponent}
-                                  width={20}
-                                  height={20}
-                                  className="object-contain"
-                                />
-                                <span className="text-white/90 text-sm font-medium">{opponent}</span>
-                              </div>
-                            </div>
-                            <div className="text-sm text-white/40">
-                              {new Date(parseInt(game.gameTime_epoch) * 1000).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </motion.div>
-                      </GameStatsDialog>
-                    );
-                  })}
+                  {Object.entries(team.teamSchedule || {})
+                    .filter(([_, game]) => {
+                      const completed = isGameCompleted(game.gameTime_epoch);
+                      return gameFilter === 'completed' ? completed : !completed;
+                    })
+                    .map(([_, game]) => renderGamePreview(game))}
                 </div>
               </motion.div>
 
