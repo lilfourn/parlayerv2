@@ -28,6 +28,7 @@ import {cn} from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LineMovementToast } from "./line-movement-toast"
 import { NBA_TEAM_COLORS } from "./teamCard"
+import { PlayerDialog } from "./playerDialog"
 import React from "react"
 
 interface ProjectionTableProps {
@@ -51,8 +52,8 @@ type NBALeagueId = typeof NBA_LEAGUE_IDS[keyof typeof NBA_LEAGUE_IDS]
 // Create an array of valid league IDs
 const VALID_LEAGUE_IDS: NBALeagueId[] = Object.values(NBA_LEAGUE_IDS)
 
-const getTeamIdentifier = (team?: string): string => {
-  if (!team) return 'UNKNOWN';
+const getTeamIdentifier = (team: string | null | undefined): string => {
+  if (!team) return 'default';
   
   // First try to match the team abbreviation directly
   if (NBA_TEAM_COLORS[team]) return team;
@@ -93,10 +94,10 @@ const getTeamIdentifier = (team?: string): string => {
 
   // Try to match the full team name
   for (const [fullName, abbr] of Object.entries(teamMapping)) {
-    if (team.includes(fullName)) return abbr;
+    if (team?.includes(fullName)) return abbr;
   }
 
-  return 'UNKNOWN';
+  return 'default';
 };
 
 const getTeamColorClasses = (teamIdentifier: string): string => {
@@ -142,50 +143,51 @@ const getTeamColorClasses = (teamIdentifier: string): string => {
 };
 
 const TableRowWithTeamStyle = ({ children, projection }: { children: React.ReactNode; projection: ProjectionWithAttributes }) => {
-  const teamIdentifier = getTeamIdentifier(projection.player?.attributes.team);
-  const teamColorClasses = getTeamColorClasses(teamIdentifier);
-  
-  // Convert children to array and ensure it's not null/undefined
+  const teamIdentifier = useMemo(() => getTeamIdentifier(projection.player?.attributes.team_name), [projection.player?.attributes.team_name]);
+  const colorClasses = useMemo(() => getTeamColorClasses(teamIdentifier), [teamIdentifier]);
   const childrenArray = React.Children.toArray(children);
-  
-  // Early return if no children
-  if (childrenArray.length === 0) return null;
 
-  // Helper function to add rounded corner classes to a cell
-  const addRoundedClass = (element: React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, isFirst: boolean) => {
-    if (element.type === TableCell) {
-      return React.cloneElement(element, {
-        ...element.props,
-        className: cn(
-          element.props.className,
-          isFirst ? "rounded-l-md" : "rounded-r-md"
-        )
-      });
-    }
-    return element;
-  };
-  
   return (
-    <TableRow className={cn(
-      "relative group transition-colors cursor-pointer",
-      "my-1 overflow-hidden",
-      "rounded-md",
-      teamColorClasses,
-      "border border-transparent hover:border-gray-200/30"
-    )}>
-      {/* First cell with rounded left corners */}
-      {addRoundedClass(childrenArray[0] as React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, true)}
-      
-      {/* Middle cells */}
-      {childrenArray.slice(1, -1)}
-      
-      {/* Last cell with rounded right corners */}
-      {childrenArray.length > 1 && addRoundedClass(
-        childrenArray[childrenArray.length - 1] as React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, 
-        false
-      )}
-    </TableRow>
+    <PlayerDialog 
+      playerName={projection.player?.attributes.display_name || ''} 
+      trigger={
+        <TableRow 
+          className={cn(
+            "cursor-pointer transition-colors",
+            colorClasses
+          )}
+        >
+          {/* First cell with rounded left corners */}
+          {childrenArray.length > 0 && addRoundedClass(
+            childrenArray[0] as React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, 
+            true
+          )}
+          
+          {/* Middle cells */}
+          {childrenArray.slice(1, -1)}
+          
+          {/* Last cell with rounded right corners */}
+          {childrenArray.length > 1 && addRoundedClass(
+            childrenArray[childrenArray.length - 1] as React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, 
+            false
+          )}
+        </TableRow>
+      }
+    />
   );
+};
+
+const addRoundedClass = (element: React.ReactElement<React.HTMLAttributes<HTMLTableCellElement>>, isFirst: boolean) => {
+  if (element.type === TableCell) {
+    return React.cloneElement(element, {
+      ...element.props,
+      className: cn(
+        element.props.className,
+        isFirst ? "rounded-l-md" : "rounded-r-md"
+      )
+    });
+  }
+  return element;
 };
 
 export function ProjectionTable({ className }: ProjectionTableProps) {
@@ -349,7 +351,7 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
           <div className="rounded-md border border-gray-700 overflow-hidden">
             <Table className="relative">
               <TableHeader className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                <TableRow className="border-b border-border/50 hover:bg-transparent">
+                <TableRow className="border-b border-gray-800">
                   <TableHead className="text-gray-200 font-semibold">Player</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Team</TableHead>
                   <TableHead className="text-gray-200 font-semibold">Stat</TableHead>
@@ -361,7 +363,7 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
               <TableBody>
                 {isLoadingProjections ? (
                   Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index} className="bg-gray-900/50 hover:bg-gray-800/70 transition-colors border-b border-gray-700 my-1 rounded-md overflow-hidden">
+                    <TableRow key={index} className="bg-gray-900/50 hover:bg-gray-800/70 transition-colors border-b border-gray-800 my-1 rounded-md overflow-hidden">
                       <TableCell className="py-3 first:rounded-l-md">
                         <Skeleton className="h-6 w-32 bg-gray-800" />
                       </TableCell>
@@ -391,12 +393,9 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
 
                     return (
                       <TableRowWithTeamStyle key={proj.projection.id} projection={proj}>
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className={cn(
-                              "h-8",
-                              proj.player?.attributes.combo ? "w-14 rounded-lg" : "w-8 rounded-full"
-                            )}>
+                        <TableCell className="border-b border-gray-800/60 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
                               <AvatarImage 
                                 src={proj.player?.attributes.image_url || ''} 
                                 alt={proj.player?.attributes.display_name || ''} 
@@ -406,16 +405,16 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
                             <span className="text-gray-200">{proj.player?.attributes.display_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="border-b border-gray-800/60">
                           <span className="text-gray-300">{proj.player?.attributes.team_name || 'N/A'}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="border-b border-gray-800/60">
                           <span className="text-gray-300">{proj.projection.attributes.stat_display_name}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="border-b border-gray-800/60 text-right">
                           <span className="text-gray-200 font-medium">{proj.projection.attributes.line_score}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="border-b border-gray-800/60 text-right">
                           {movement && movement.direction !== 'none' ? (
                             <div className="flex items-center justify-end gap-1">
                               <span className={cn(
@@ -434,7 +433,7 @@ export function ProjectionTable({ className }: ProjectionTableProps) {
                             <span className="text-gray-500">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="border-b border-gray-800/60 text-right">
                           <span className="text-gray-300">{startTime}</span>
                         </TableCell>
                       </TableRowWithTeamStyle>
