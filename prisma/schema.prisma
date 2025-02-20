@@ -15,3 +15,55 @@ model Waitlist {
   email    String   @unique
   joinedAt DateTime @default(now())
 }
+
+model Player {
+  id           String     @id // Using String because playerID is a string in the API
+  name         String
+  lastUpdated  DateTime   @default(now()) // Track when stats were last updated
+  gameStats    GameStat[]
+}
+
+model GameStat {
+  id            Int      @id @default(autoincrement())
+  gameId        String   // e.g. "20240429_LAL@DEN"
+  date          String   // Extracted from gameId
+  team          String   // e.g. "LAL"
+  teamId        String   // e.g. "14"
+  minutes       Int
+  points        Int
+  rebounds      Int
+  offRebounds   Int
+  defRebounds   Int
+  assists       Int
+  steals       Int
+  blocks       Int
+  turnovers    Int
+  personalFouls Int
+  technicals   Int
+  
+  // Detailed shooting stats
+  fgMade       Int
+  fgAttempted  Int
+  fgPercentage Float
+  threePtMade  Int
+  threePtAttempted Int
+  threePtPercentage Float
+  ftMade       Int
+  ftAttempted  Int
+  ftPercentage Float
+  
+  // Combined stats (for compatibility)
+  fg          String    // e.g. "9/20"
+  threePt     String    // e.g. "1/6"
+  ft          String    // e.g. "9/10"
+  
+  plusMinus    String
+  fantasyPoints Float
+  
+  // Foreign key relationship to Player
+  playerId     String
+  player       Player   @relation(fields: [playerId], references: [id])
+
+  @@index([playerId])
+  @@index([gameId])
+}

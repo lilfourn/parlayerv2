@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import {cn} from "@/lib/utils"
 
 interface PlayerGameStats {
   blk: string
@@ -130,57 +131,69 @@ export function PlayerDialog({ playerName, trigger }: PlayerDialogProps) {
       <DialogTrigger asChild>
         {trigger || <Button variant="ghost">View Stats</Button>}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh] bg-gray-900/95 backdrop-blur-sm border-gray-800">
         <DialogHeader>
-          <DialogTitle>{playerName} - Season Stats</DialogTitle>
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+            {playerName} - Season Stats
+          </DialogTitle>
         </DialogHeader>
         
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full bg-gray-800" />
+            <Skeleton className="h-4 w-full bg-gray-800" />
+            <Skeleton className="h-4 w-full bg-gray-800" />
           </div>
         ) : error ? (
           <div className="text-red-500">{error}</div>
         ) : (
-          <ScrollArea className="h-[60vh]">
+          <ScrollArea className="h-[60vh] pr-4">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead>MIN</TableHead>
-                  <TableHead>PTS</TableHead>
-                  <TableHead>REB</TableHead>
-                  <TableHead>AST</TableHead>
-                  <TableHead>STL</TableHead>
-                  <TableHead>BLK</TableHead>
-                  <TableHead>TO</TableHead>
-                  <TableHead>FG</TableHead>
-                  <TableHead>3PT</TableHead>
-                  <TableHead>FT</TableHead>
-                  <TableHead>+/-</TableHead>
+              <TableHeader className="bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/60 sticky top-0 z-10">
+                <TableRow className="border-b border-gray-800">
+                  <TableHead className="text-gray-200 font-semibold">Date</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">Team</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">MIN</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">PTS</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">REB</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">AST</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">STL</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">BLK</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">TO</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">FG</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">3PT</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">FT</TableHead>
+                  <TableHead className="text-gray-200 font-semibold">+/-</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {gameStats.map(([gameId, game]) => (
-                  <TableRow key={gameId}>
-                    <TableCell>{gameId.split('_')[0]}</TableCell>
-                    <TableCell>{game.teamAbv}</TableCell>
-                    <TableCell>{game.mins}</TableCell>
-                    <TableCell>{game.pts}</TableCell>
-                    <TableCell>{game.reb}</TableCell>
-                    <TableCell>{game.ast}</TableCell>
-                    <TableCell>{game.stl}</TableCell>
-                    <TableCell>{game.blk}</TableCell>
-                    <TableCell>{game.TOV}</TableCell>
-                    <TableCell>{`${game.fgm}/${game.fga}`}</TableCell>
-                    <TableCell>{`${game.tptfgm}/${game.tptfga}`}</TableCell>
-                    <TableCell>{`${game.ftm}/${game.fta}`}</TableCell>
-                    <TableCell>{game.plusMinus}</TableCell>
-                  </TableRow>
-                ))}
+                {gameStats.map(([gameId, game]) => {
+                  const plusMinus = parseInt(game.plusMinus);
+                  return (
+                    <TableRow 
+                      key={gameId}
+                      className="border-b border-gray-800/60 hover:bg-gray-800/50 transition-colors"
+                    >
+                      <TableCell className="text-gray-300">{gameId.split('_')[0]}</TableCell>
+                      <TableCell className="text-gray-300">{game.teamAbv}</TableCell>
+                      <TableCell className="text-gray-300">{game.mins}</TableCell>
+                      <TableCell className="font-medium text-gray-200">{game.pts}</TableCell>
+                      <TableCell className="text-gray-300">{game.reb}</TableCell>
+                      <TableCell className="text-gray-300">{game.ast}</TableCell>
+                      <TableCell className="text-gray-300">{game.stl}</TableCell>
+                      <TableCell className="text-gray-300">{game.blk}</TableCell>
+                      <TableCell className="text-gray-300">{game.TOV}</TableCell>
+                      <TableCell className="text-gray-300">{`${game.fgm}/${game.fga}`}</TableCell>
+                      <TableCell className="text-gray-300">{`${game.tptfgm}/${game.tptfga}`}</TableCell>
+                      <TableCell className="text-gray-300">{`${game.ftm}/${game.fta}`}</TableCell>
+                      <TableCell className={cn(
+                        plusMinus > 0 ? "text-green-400" : plusMinus < 0 ? "text-red-400" : "text-gray-400"
+                      )}>
+                        {plusMinus > 0 ? `+${game.plusMinus}` : game.plusMinus}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </ScrollArea>
