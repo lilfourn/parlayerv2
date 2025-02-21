@@ -5,8 +5,15 @@ import { unstable_cache } from 'next/cache';
 
 export const getTeams = unstable_cache(
   async () => {
-    const res = await fetch('http://localhost:3000/api/nba/teams', {
-      next: { revalidate: 300 } // 5 minutes
+    const res = await fetch('/api/nba/teams', {
+      next: { 
+        revalidate: 300, // 5 minutes
+        tags: ['nba-teams']
+      },
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+      },
+      signal: AbortSignal.timeout(5000) // 5 second timeout
     });
     
     if (!res.ok) {
@@ -25,8 +32,9 @@ export const getTeams = unstable_cache(
 
 export const getPlayers = unstable_cache(
   async () => {
-    const res = await fetch('http://localhost:3000/api/nba/playerInfo', {
-      next: { revalidate: 300 }
+    const res = await fetch('/api/nba/playerInfo', {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(5000) // 5 second timeout
     });
     
     if (!res.ok) {
@@ -44,7 +52,7 @@ export const getPlayers = unstable_cache(
 );
 
 export async function refreshTeams() {
-  const res = await fetch('http://localhost:3000/api/nba/teams', {
+  const res = await fetch('/api/nba/teams', {
     method: 'POST',
     cache: 'no-store'
   });

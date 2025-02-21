@@ -21,6 +21,7 @@ model Player {
   name         String
   lastUpdated  DateTime   @default(now()) // Track when stats were last updated
   gameStats    GameStat[]
+  projectionNames ProjectionName[]
 }
 
 model GameStat {
@@ -65,5 +66,88 @@ model GameStat {
   player       Player   @relation(fields: [playerId], references: [id])
 
   @@index([playerId])
+  @@index([gameId])
+}
+
+model Team {
+  id            String     @id // Using teamID from the API
+  name          String     // Full team name
+  abbreviation  String     // Team abbreviation
+  city          String
+  conference    String
+  division      String
+  lastUpdated   DateTime   @default(now())
+  teamStats     TeamStat[]
+}
+
+model TeamStat {
+  id              Int      @id @default(autoincrement())
+  date            String
+  wins            Int
+  losses          Int
+  pointsPerGame   Float
+  oppPointsPerGame Float
+  
+  // Offensive stats
+  fieldGoalsMade     Int
+  fieldGoalsAttempted Int
+  fieldGoalPercentage Float
+  threePtMade        Int
+  threePtAttempted   Int
+  threePtPercentage  Float
+  freeThrowsMade     Int
+  freeThrowsAttempted Int
+  freeThrowPercentage Float
+  offensiveRebounds  Int
+  assists            Int
+  turnovers          Int
+  
+  // Defensive stats
+  defensiveRebounds  Int
+  steals             Int
+  blocks             Int
+  personalFouls      Int
+  
+  // Additional stats
+  fastBreakPoints    Int
+  pointsInPaint      Int
+  pointsOffTurnovers Int
+  
+  // Foreign key relationship to Team
+  teamId     String
+  team       Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, date])
+  @@index([teamId])
+  @@index([date])
+}
+
+model ProjectionName {
+  id            String           @id @default(cuid())
+  playerId      String          @unique
+  displayName   String          // Player's display name
+  player        Player          @relation(fields: [playerId], references: [id])
+  projections   ProjectionData[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([playerId])
+}
+
+model ProjectionData {
+  id              String         @id // Using the API's projection ID
+  projectionNameId String        // Reference to ProjectionName
+  projectionName   ProjectionName @relation(fields: [projectionNameId], references: [id])
+  gameId          String         // Game identifier
+  statType        String         // Type of stat being projected
+  lineScore       Float         // The projected line score
+  startTime       DateTime      // When the game starts
+  endTime         DateTime?     // When the game ends (nullable)
+  status          String        // Game status (pre_game, in_progress, final)
+  odds            Float?        // Adjusted odds if available
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([projectionNameId])
   @@index([gameId])
 }

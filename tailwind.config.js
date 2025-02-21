@@ -88,7 +88,10 @@ module.exports = {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite', // Slower pulse animation
         'glow-pulse': 'glowPulse 2s infinite', // Custom glow pulse animation
         'fade-in': 'fade-in 0.5s ease-in-out',
-        'fade-in-up': 'fade-in-up 0.5s ease-out'
+        'fade-in-up': 'fade-in-up 0.5s ease-out',
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.5s ease-out",
       },
       keyframes: {
         glowPulse: {
@@ -116,7 +119,19 @@ module.exports = {
             opacity: '1',
             transform: 'translateY(0)'
           }
-        }
+        },
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
+        },
+        "fade-in": {
+          "0%": { opacity: 0 },
+          "100%": { opacity: 1 },
+        },
       },
       borderRadius: {
         'xl': '1rem', // Larger border radius for cards

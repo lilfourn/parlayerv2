@@ -19,78 +19,103 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import {cn} from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-interface PlayerGameStats {
-  blk: string
-  OffReb: string
-  ftp: string
-  DefReb: string
-  plusMinus: string
-  stl: string
-  pts: string
-  tech: string
+interface GameStat {
+  id: number
+  gameId: string
+  date: string
+  playerId: string
+  blocks: number
+  offRebounds: number
+  defRebounds: number
+  rebounds: number
+  assists: number
+  steals: number
+  points: number
+  technicals: number
   team: string
-  TOV: string
-  fga: string
-  ast: string
-  tptfgp: string
-  teamAbv: string
-  mins: string
-  fgm: string
-  fgp: string
-  reb: string
-  teamID: string
-  tptfgm: string
-  fta: string
-  tptfga: string
-  longName: string
-  PF: string
-  playerID: string
-  ftm: string
-  gameID: string
-  fantasyPoints: string
-}
-
-interface PlayerStats {
-  body: {
-    [gameId: string]: PlayerGameStats
-  }
-}
-
-interface SimplifiedNBAPlayer {
-  longName: string
-  team: string
-  playerID: string
+  turnovers: number
+  fgAttempted: number
+  fgMade: number
+  fgPercentage: number
+  threePtMade: number
+  threePtAttempted: number
+  threePtPercentage: number
+  minutes: number
+  teamId: string
+  personalFouls: number
+  ftMade: number
+  ftAttempted: number
 }
 
 interface PlayerDialogProps {
   playerName: string
   trigger?: React.ReactNode
+  combo?: boolean
 }
 
-async function fetchPlayerList(): Promise<SimplifiedNBAPlayer[]> {
-  const response = await fetch('/api/nba/playerStats/playerList')
+async function fetchPlayerStats(playerName: string): Promise<GameStat[]> {
+  const response = await fetch(`/api/nba/playerStats/db?playerName=${encodeURIComponent(playerName)}`)
   if (!response.ok) {
-    throw new Error('Failed to fetch player list')
+    throw new Error('Failed to fetch player stats')
   }
   return response.json()
 }
 
-async function fetchPlayerStats(playerID: string): Promise<PlayerStats> {
-  const response = await fetch(`/api/nba/playerStats?playerIDs=${playerID}`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch player stats')
-  }
-  const data = await response.json()
-  return data[playerID]
+function StatsTable({ stats }: { stats: GameStat[] }) {
+  const sortedGameStats = stats.sort((a, b) => b.gameId.localeCompare(a.gameId))
+
+  return (
+    <Table>
+      <TableHeader className="bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/60 sticky top-0 z-10">
+        <TableRow className="border-b border-gray-800">
+          <TableHead className="text-gray-200 font-semibold">Date</TableHead>
+          <TableHead className="text-gray-200 font-semibold">Team</TableHead>
+          <TableHead className="text-gray-200 font-semibold">MIN</TableHead>
+          <TableHead className="text-gray-200 font-semibold">PTS</TableHead>
+          <TableHead className="text-gray-200 font-semibold">REB</TableHead>
+          <TableHead className="text-gray-200 font-semibold">AST</TableHead>
+          <TableHead className="text-gray-200 font-semibold">STL</TableHead>
+          <TableHead className="text-gray-200 font-semibold">BLK</TableHead>
+          <TableHead className="text-gray-200 font-semibold">TO</TableHead>
+          <TableHead className="text-gray-200 font-semibold">FG</TableHead>
+          <TableHead className="text-gray-200 font-semibold">3PT</TableHead>
+          <TableHead className="text-gray-200 font-semibold">FT</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sortedGameStats.map((game) => (
+          <TableRow 
+            key={game.id}
+            className="border-b border-gray-800/60 hover:bg-gray-800/50 transition-colors"
+          >
+            <TableCell className="text-gray-300">{game.date}</TableCell>
+            <TableCell className="text-gray-300">{game.team}</TableCell>
+            <TableCell className="text-gray-300">{game.minutes}</TableCell>
+            <TableCell className="font-medium text-gray-200">{game.points}</TableCell>
+            <TableCell className="text-gray-300">{game.rebounds}</TableCell>
+            <TableCell className="text-gray-300">{game.assists}</TableCell>
+            <TableCell className="text-gray-300">{game.steals}</TableCell>
+            <TableCell className="text-gray-300">{game.blocks}</TableCell>
+            <TableCell className="text-gray-300">{game.turnovers}</TableCell>
+            <TableCell className="text-gray-300">{`${game.fgMade}/${game.fgAttempted}`}</TableCell>
+            <TableCell className="text-gray-300">{`${game.threePtMade}/${game.threePtAttempted}`}</TableCell>
+            <TableCell className="text-gray-300">{`${game.ftMade}/${game.ftAttempted}`}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
 }
 
-export function PlayerDialog({ playerName, trigger }: PlayerDialogProps) {
+export function PlayerDialog({ playerName, trigger, combo = false }: PlayerDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
+  const [playerStats, setPlayerStats] = useState<{ [key: string]: GameStat[] }>({})
+  const [activeTab, setActiveTab] = useState<string>('combined')
 
   useEffect(() => {
     if (isOpen && playerName) {
@@ -99,17 +124,20 @@ export function PlayerDialog({ playerName, trigger }: PlayerDialogProps) {
           setIsLoading(true)
           setError(null)
           
-          // First, get the player list and find the matching player
-          const players = await fetchPlayerList()
-          const player = players.find(p => p.longName === playerName)
-          
-          if (!player) {
-            throw new Error('Player not found')
+          if (combo) {
+            const playerNames = playerName.split('+').map(name => name.trim())
+            const stats: { [key: string]: GameStat[] } = {}
+            
+            for (const name of playerNames) {
+              const playerStats = await fetchPlayerStats(name)
+              stats[name] = playerStats
+            }
+            
+            setPlayerStats(stats)
+          } else {
+            const stats = await fetchPlayerStats(playerName)
+            setPlayerStats({ [playerName]: stats })
           }
-
-          // Then fetch the player's stats
-          const stats = await fetchPlayerStats(player.playerID)
-          setPlayerStats(stats)
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load player stats')
         } finally {
@@ -119,12 +147,7 @@ export function PlayerDialog({ playerName, trigger }: PlayerDialogProps) {
 
       loadPlayerStats()
     }
-  }, [isOpen, playerName])
-
-  const gameStats = playerStats ? Object.entries(playerStats.body).sort((a, b) => {
-    // Sort by game date (gameID format: YYYYMMDD_AWAY@HOME)
-    return b[0].localeCompare(a[0])
-  }) : []
+  }, [isOpen, playerName, combo])
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -148,54 +171,36 @@ export function PlayerDialog({ playerName, trigger }: PlayerDialogProps) {
           <div className="text-red-500">{error}</div>
         ) : (
           <ScrollArea className="h-[60vh] pr-4">
-            <Table>
-              <TableHeader className="bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/60 sticky top-0 z-10">
-                <TableRow className="border-b border-gray-800">
-                  <TableHead className="text-gray-200 font-semibold">Date</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">Team</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">MIN</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">PTS</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">REB</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">AST</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">STL</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">BLK</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">TO</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">FG</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">3PT</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">FT</TableHead>
-                  <TableHead className="text-gray-200 font-semibold">+/-</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {gameStats.map(([gameId, game]) => {
-                  const plusMinus = parseInt(game.plusMinus);
-                  return (
-                    <TableRow 
-                      key={gameId}
-                      className="border-b border-gray-800/60 hover:bg-gray-800/50 transition-colors"
+            {combo ? (
+              <Tabs defaultValue="combined" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-800/50 mb-4">
+                  <TabsTrigger value="combined" className="data-[state=active]:bg-gray-700">Combined Stats</TabsTrigger>
+                  {Object.keys(playerStats).map((name) => (
+                    <TabsTrigger 
+                      key={name} 
+                      value={name}
+                      className="data-[state=active]:bg-gray-700"
                     >
-                      <TableCell className="text-gray-300">{gameId.split('_')[0]}</TableCell>
-                      <TableCell className="text-gray-300">{game.teamAbv}</TableCell>
-                      <TableCell className="text-gray-300">{game.mins}</TableCell>
-                      <TableCell className="font-medium text-gray-200">{game.pts}</TableCell>
-                      <TableCell className="text-gray-300">{game.reb}</TableCell>
-                      <TableCell className="text-gray-300">{game.ast}</TableCell>
-                      <TableCell className="text-gray-300">{game.stl}</TableCell>
-                      <TableCell className="text-gray-300">{game.blk}</TableCell>
-                      <TableCell className="text-gray-300">{game.TOV}</TableCell>
-                      <TableCell className="text-gray-300">{`${game.fgm}/${game.fga}`}</TableCell>
-                      <TableCell className="text-gray-300">{`${game.tptfgm}/${game.tptfga}`}</TableCell>
-                      <TableCell className="text-gray-300">{`${game.ftm}/${game.fta}`}</TableCell>
-                      <TableCell className={cn(
-                        plusMinus > 0 ? "text-green-400" : plusMinus < 0 ? "text-red-400" : "text-gray-400"
-                      )}>
-                        {plusMinus > 0 ? `+${game.plusMinus}` : game.plusMinus}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      {name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <TabsContent value="combined">
+                  <StatsTable 
+                    stats={Object.values(playerStats)
+                      .flat()
+                      .sort((a, b) => b.gameId.localeCompare(a.gameId))} 
+                  />
+                </TabsContent>
+                {Object.entries(playerStats).map(([name, stats]) => (
+                  <TabsContent key={name} value={name}>
+                    <StatsTable stats={stats} />
+                  </TabsContent>
+                ))}
+              </Tabs>
+            ) : (
+              <StatsTable stats={Object.values(playerStats)[0] || []} />
+            )}
           </ScrollArea>
         )}
       </DialogContent>

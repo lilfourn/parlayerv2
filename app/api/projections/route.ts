@@ -1,5 +1,7 @@
 import { Props, Projection, NewPlayer, StatAverage, IncludedItem } from '@/types/projections';
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
+import { fetchProjectionsFromAPI } from './utils';
 
 const API_URL = 'https://partner-api.prizepicks.com/projections?per_page=1000&include=new_player,stat_average,league';
 
@@ -87,52 +89,37 @@ function removeNullAttributes<T>(obj: T): T extends object ? Partial<T> : T {
 
 export async function GET() {
   try {
-    const response = await fetch(API_URL);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    const cleanedProjections = await fetchProjectionsFromAPI();
 
-    const rawData = await response.json() as Props & { included: IncludedItem[] };
-    
-    // Filter and sort projections
-    const processedData = Array.isArray(rawData.data) 
-      ? rawData.data
-          .filter((projection: Projection) => 
-            projection.attributes?.odds_type === 'standard' && 
-            !projection.attributes?.description?.includes('SZN')
-          )
-          .map(projection => connectRelationships(projection, rawData.included))
-          .sort(sortByLiveStatus)
-      : [];
+    // Get the host from headers for constructing the full URL
+    const headersList = await headers();
+    const host = headersList.get('host');
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const dbSyncUrl = `${protocol}://${host}/api/projections/db`;
 
-    const cleanData = removeNullAttributes({ data: processedData });
+    // Trigger database upload in the background
+    fetch(dbSyncUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ projections: cleanedProjections }),
+    }).catch(error => {
+      console.error('Background database sync failed:', error);
+    });
 
+    // Return the cleaned projections data
     return NextResponse.json({
       success: true,
-      data: cleanData,
-      message: 'Fresh data fetched successfully'
-    }, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      }
+      data: cleanedProjections,
     });
 
-  } catch (error: unknown) {
-    console.error('Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: 'Failed to fetch projections data'
-    }, {
-      status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      }
-    });
+  } catch (error) {
+    console.error('Error fetching projections:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch projections' },
+      { status: 500 }
+    );
   }
 }
 

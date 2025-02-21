@@ -92,7 +92,7 @@ async function fetchPlayerStats(params: PlayerStatsParams): Promise<PlayerStatsR
     url: 'https://tank01-fantasy-stats.p.rapidapi.com/getNBAGamesForPlayer',
     params: {
       ...params,
-      season: params.season || '2024',
+      season: params.season || '2025',
       fantasyPoints: params.fantasyPoints || 'true',
       pts: params.pts || '1',
       reb: params.reb || '1.25',

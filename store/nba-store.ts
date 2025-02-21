@@ -75,9 +75,32 @@ export const useNBAStore = create<NBAProjStore>((set, get) => ({
   loadTeams: async () => {
     set({ isLoadingTeams: true, error: null });
     try {
-      const teams = await getTeams();
-      set({ teams, isLoadingTeams: false });
+      // First try to get teams from the cache
+      const cachedTeamsResponse = await fetch('/api/nba/teams', {
+        next: { tags: ['nba-teams'] }
+      });
+
+      if (cachedTeamsResponse.ok) {
+        const data = await cachedTeamsResponse.json();
+        set({ teams: data.body, isLoadingTeams: false });
+        return;
+      }
+
+      // If cache fails, fetch fresh data
+      const freshTeamsResponse = await fetch('/api/nba/teams', {
+        method: 'POST', // This endpoint refreshes the data
+        cache: 'no-store',
+        next: { tags: ['nba-teams'] }
+      });
+
+      if (!freshTeamsResponse.ok) {
+        throw new Error('Failed to fetch teams data');
+      }
+
+      const freshData = await freshTeamsResponse.json();
+      set({ teams: freshData.body, isLoadingTeams: false });
     } catch (error) {
+      console.error('Error loading teams:', error);
       set({ error: 'Failed to load teams', isLoadingTeams: false });
     }
   },

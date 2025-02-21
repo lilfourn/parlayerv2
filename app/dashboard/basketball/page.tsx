@@ -1,7 +1,7 @@
 'use client';
 
 import { TeamCard } from '@/components/nba/teamCard';
-import { PlayerCard } from '@/components/nba/playerCard';
+import { PlayerCard} from '@/components/nba/playerCard';
 import { PlayerFilters } from '@/components/nba/player-filters';
 import { NBATabs } from '@/components/nba/nbaTabs';
 import { ProjectionTable } from '@/components/nba/projectionTable';
@@ -14,20 +14,8 @@ import { useNBAStore } from '@/store/nba-store';
 import { useSidebarStore } from '@/store/sidebar-store';
 import { Sparkles } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
-
-async function refreshTeams() {
-  const res = await fetch('/api/nba/teams', {
-    method: 'POST',
-    cache: 'no-store'
-  });
-  
-  if (!res.ok) {
-    throw new Error('Failed to refresh teams');
-  }
-
-  const data = await res.json();
-  return data.body as NBATeam[];
-}
+import { Spinner } from '@/components/ui/spinner';
+import { CyclingText } from '@/components/ui/cycling-text';
 
 async function getPlayers() {
   const res = await fetch('/api/nba/playerInfo', {
@@ -47,7 +35,7 @@ export default function NBADashboard() {
   const [showTopPlayersOnly, setShowTopPlayersOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [players, setPlayers] = useState<Player[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
   const [activeTab, setActiveTab] = useState<NBATab>('teams');
 
   // Get teams from global store
@@ -58,31 +46,22 @@ export default function NBADashboard() {
     loadTeams();
   }, [loadTeams]);
 
-  // Fetch players data
+  // Fetch players data once
   useEffect(() => {
-    const fetchPlayers = async () => {
+    async function fetchPlayers() {
       try {
-        const playersData = await getPlayers();
-        setPlayers(playersData);
+        setIsLoadingPlayers(true);
+        const fetchedPlayers = await getPlayers();
+        setPlayers(fetchedPlayers);
       } catch (error) {
-        console.error('Error fetching players:', error);
+        console.error('Failed to fetch players:', error);
+      } finally {
+        setIsLoadingPlayers(false);
       }
-    };
+    }
+    
     fetchPlayers();
   }, []);
-
-  // Handle refresh
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      const refreshedTeams = await refreshTeams();
-      loadTeams(); // This will update the global store
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   // Filter players based on search and team selection
   const filteredPlayers = useMemo(() => {
@@ -144,18 +123,6 @@ export default function NBADashboard() {
       }}
     >
       <Toaster />
-      <div className="fixed top-0 right-4 p-4 z-10">
-        <Button 
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-accent/5 hover:border-purple-600/50 hover:shadow-[0_0_15px_rgba(147,51,234,0.3)] transition-all duration-300 shadow-sm border border-border/40 rounded-lg"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
       <div className="w-full p-6">
         <NBATabs activeTab={activeTab} onChange={setActiveTab} />
         
@@ -203,14 +170,30 @@ export default function NBADashboard() {
               exit={{ opacity: 0, y: 20 }}
               className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
             >
-              {displayedPlayers.map((player) => (
-                <PlayerCard 
-                  key={`${player.longName}-${player.team}`} 
-                  player={player}
-                  maxStats={maxStats}
-                  sidebarWidth={sidebarWidth}
-                />
-              ))}
+              {isLoadingPlayers ? (
+                <div className="col-span-full flex flex-col justify-center items-center min-h-[300px] space-y-6">
+                  <Spinner size="lg" />
+                  <CyclingText 
+                    messages={[
+                      "Loading player statistics...",
+                      "Gathering the latest NBA data...",
+                      "Player cards will appear shortly...",
+                      "Crunching the numbers...",
+                    ]}
+                    className="text-muted-foreground text-lg"
+                    interval={3000}
+                  />
+                </div>
+              ) : (
+                displayedPlayers.map((player) => (
+                  <PlayerCard 
+                    key={`${player.longName}-${player.team}`} 
+                    player={player}
+                    maxStats={maxStats}
+                    sidebarWidth={sidebarWidth}
+                  />
+                ))
+              )}
             </motion.div>
           </div>
         )}
